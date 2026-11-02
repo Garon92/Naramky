@@ -1,6 +1,7 @@
 // Motifs drawn as text, so a shape can be read right here. Each line is a row along
 // the bracelet. Beads sit on every other character, and each next line shifts by one
-// character, exactly as peyote rows shift by half a bead.
+// character, exactly as peyote rows shift by half a bead. # is the motif, o its centre,
+// which has a colour of its own.
 export const MOTIFS = {
   // Hearts as in the reference images: two round lobes, a clear notch, then straight
   // sides that lose half a bead per row down to a single bead at the tip.
@@ -86,13 +87,15 @@ export const MOTIFS = {
   flower: {
     label: 'Květina',
     art: [
-      '    # # #',
-      '   # # # #',
-      '# # # # # # #',
-      ' # # # # # #',
-      '# # # # # # #',
-      '   # # # #',
-      '    # # #',
+      '    # #   # #',
+      '   # # # # # #',
+      '    # # # # #',
+      ' # # # o o # # #',
+      '# # # o o o # # #',
+      ' # # # o o # # #',
+      '    # # # # #',
+      '   # # # # # #',
+      '    # #   # #',
     ],
   },
   clover: {
@@ -120,15 +123,15 @@ export function parseMotif(id) {
   const raw = [];
   art.forEach((line, row) => {
     for (let p = 0; p < line.length; p++) {
-      if (line[p] === '#') {
-        raw.push({ row, p });
+      if (line[p] !== ' ') {
+        raw.push({ row, p, center: line[p] === 'o' });
         min = Math.min(min, p);
         max = Math.max(max, p);
       }
     }
   });
   const axis = Math.round((min + max) / 2);
-  const beads = raw.map((b) => ({ row: b.row, x: b.p - axis }));
+  const beads = raw.map((b) => ({ row: b.row, x: b.p - axis, center: b.center }));
   const m = { beads, rows: art.length, widthBeads: Math.ceil((max - min) / 2) + 1 };
   parsed.set(id, m);
   return m;
@@ -148,7 +151,7 @@ export function placeMotif(id, X, topRow, w, n) {
     const r = topRow + b.row;
     if (r < 0 || r >= w) continue;
     const c = (fixedX + b.x - (r % 2)) / 2;
-    if (c >= 0 && c < n) out.push({ r, c });
+    if (c >= 0 && c < n) out.push({ r, c, center: b.center });
   }
   return out;
 }

@@ -1,9 +1,11 @@
-// Light or dark. Follows the system until someone picks, then remembers the choice.
+// Light, dark, or following the system, which is what happens until someone picks.
 // The first paint is decided by a small script in index.html using the same key.
-import { icon, safeStorage } from './util.js';
+import { icon, safeStorage, toast } from './util.js';
 
 const KEY = 'naramky:theme';
 const META = { light: '#f3eee6', dark: '#16121a' };
+const MODES = { system: { icon: 'auto', label: 'podle systému' }, light: { icon: 'sun', label: 'světlý' }, dark: { icon: 'moon', label: 'tmavý' } };
+const ORDER = Object.keys(MODES);
 const root = document.documentElement;
 const listeners = new Set();
 
@@ -20,30 +22,31 @@ function apply(theme) {
   for (const fn of listeners) fn(theme);
 }
 
-function saved() {
+function savedMode() {
   const value = safeStorage.get(KEY);
-  return value === 'dark' || value === 'light' ? value : null;
+  return value === 'dark' || value === 'light' ? value : 'system';
 }
 
 export function initTheme(button) {
   const system = matchMedia('(prefers-color-scheme: dark)');
+  let mode = savedMode();
   const paint = () => {
-    const toDark = currentTheme() === 'light';
-    const label = toDark ? 'Zapnout tmavý režim' : 'Zapnout světlý režim';
-    button.replaceChildren(icon(toDark ? 'moon' : 'sun'));
+    const next = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
+    const label = `Vzhled: ${MODES[mode].label}. Další klepnutí: ${MODES[next].label}.`;
+    button.replaceChildren(icon(MODES[mode].icon));
     button.title = label;
     button.setAttribute('aria-label', label);
   };
+  const follow = () => apply(mode === 'system' ? (system.matches ? 'dark' : 'light') : mode);
   button.addEventListener('click', () => {
-    const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    safeStorage.set(KEY, next);
-    apply(next);
+    mode = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
+    safeStorage.set(KEY, mode);
+    follow();
     paint();
+    toast(`Vzhled: ${MODES[mode].label}`);
   });
   system.addEventListener('change', () => {
-    if (saved()) return;
-    apply(system.matches ? 'dark' : 'light');
-    paint();
+    if (mode === 'system') follow();
   });
   // Paper is always light, whatever the screen shows.
   let before = null;

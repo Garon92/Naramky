@@ -6,7 +6,6 @@ import * as strand from '../techniques/strand.js';
 import * as weaves from '../techniques/weaves.js';
 import { SHAPES, reach } from './shapes.js';
 import { bead, codeOf, hasBead, czName } from './catalog.js';
-import { parseMotif } from './motifs.js';
 
 export const TECHNIQUES = {
   peyote: { label: 'Šitý pás Delica', mod: peyote, paint: true },
@@ -194,6 +193,7 @@ export function applyWrist(d, wrist) {
   }
 }
 
+const FIRST_COLORS = { Konce: 'DB0031', Mezičlánky: 'DB0031', Středy: 'DB0721' };
 const FRESH_COLORS = ['DB1138', 'DB2036', 'DB0658', 'DB2138', 'DB0721', 'DB2121', 'DB2035', 'DB1133', 'DB0726', 'DB0244', 'DB0729', 'DB1379'];
 
 // Changing pattern settings regenerates the band. Colours and names stay with their
@@ -203,17 +203,21 @@ export function applyMotifSettings(d, part, changes) {
   const { motif, count, ...rest } = changes;
   const before = groupsOf(d);
   const old = d.slots.map((x) => ({ ...x }));
+  const wasFitted = !('w' in rest) && p.w === peyote.fittedWidth(p);
   Object.assign(p, rest);
   part.cells = null;
   if (rest.size !== undefined) p.n = colsForWrist(d.wrist, peyote.beadDims(part).D);
-  if (p.kind !== 'motifs') return;
   if (motif) p.seq = p.seq.map(() => motif);
   if (count !== undefined) {
     const base = p.seq[0];
     p.seq = Array.from({ length: count }, (_, i) => p.seq[i] ?? base);
   }
-  const rows = new Set(p.seq.map((id) => parseMotif(id).rows));
-  if (rows.size === 1 && (p.w - [...rows][0]) % 2 !== 0) p.w += 1;
+  // The band follows the picture. A width chosen by hand stays, evened up so that the free
+  // rows above and below match.
+  const fitted = peyote.fittedWidth(p);
+  if (fitted && (motif || wasFitted)) p.w = fitted;
+  else if (fitted && (p.w - fitted) % 2 !== 0) p.w += 1;
+  if (p.kind !== 'motifs') return;
   const seen = new Map();
   let fresh = 0;
   d.slots = peyote.generate(p).roles.map((role) => {
@@ -223,7 +227,7 @@ export function applyMotifSettings(d, part, changes) {
     const prev = prevGroup ? old[prevGroup.slots[position]] : null;
     if (prev) return { ...prev };
     const sibling = prevGroup ? old[prevGroup.slots[0]] : null;
-    const code = sibling && role.group !== 'Srdíčka' ? sibling.code : role.group === 'Konce' || role.group === 'Mezičlánky' ? 'DB0031' : FRESH_COLORS[fresh++ % FRESH_COLORS.length];
+    const code = sibling && role.group !== 'Srdíčka' ? sibling.code : FIRST_COLORS[role.group] ?? FRESH_COLORS[fresh++ % FRESH_COLORS.length];
     return { ...role, code };
   });
 }

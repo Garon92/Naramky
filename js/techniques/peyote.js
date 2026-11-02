@@ -31,6 +31,13 @@ function taper(cells, w, n) {
   }
 }
 
+// The band for a picture: one free row above and below the tallest one. Null without pictures.
+export function fittedWidth(p) {
+  if (p.kind === 'pixels') return Math.max(...p.items.map((id) => pixelSize(id).rows)) + 2;
+  if (p.kind === 'motifs') return Math.max(...[...p.seq, ...(p.spacer ? [p.spacer] : [])].map((id) => parseMotif(id).rows)) + 2;
+  return null;
+}
+
 const pixelsWidth = ({ items, gap = 2 }) => items.reduce((sum, id) => sum + pixelSize(id).cols, 0) + gap * (items.length - 1);
 
 const generators = {
@@ -56,6 +63,8 @@ const generators = {
     if (p.bg2) roles.push({ label: 'Trojúhelníky', group: 'Trojúhelníky' });
 
     const parsedSeq = seq.map((id) => parseMotif(id));
+    const centerSlot = roles.length;
+    if (parsedSeq.some((m) => m.beads.some((b) => b.center))) roles.push({ label: 'Středy', group: 'Středy' });
     const spacer = p.spacer ? parseMotif(p.spacer) : null;
     const gap = p.gap ?? 2;
     const between = gap + (spacer ? spacer.widthBeads + gap : 0);
@@ -71,8 +80,8 @@ const generators = {
     const topFor = (m) => Math.floor((w - m.rows) / 2);
     const motifCells = new Set();
     parsedSeq.forEach((m, i) => {
-      for (const { r, c } of placeMotif(seq[i], centers[i], topFor(m), w, n)) {
-        cells[r * n + c] = i + 1;
+      for (const { r, c, center } of placeMotif(seq[i], centers[i], topFor(m), w, n)) {
+        cells[r * n + c] = center ? centerSlot : i + 1;
         motifCells.add(r * n + c);
       }
     });

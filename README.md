@@ -11,7 +11,7 @@ Plánovač korálkových náramků s náhledem, který vypadá jako fotka. Běž
 - **Sdílení:** krátký odkaz nese vzor a tvoje změny a posíláš ho sám, třeba přes WhatsApp, na telefonu i s fotkou. Web nikam nic neodesílá ani neobjednává a nemá žádný server.
 - **Ukládání:** rozpracovaný návrh se průběžně drží v prohlížeči a Uložit ho přidá do Moje návrhy. Mezi zařízeními se přenáší odkazem.
 - **Pro šití:** schéma s kreslením po korálcích, seznam materiálu, postup po řadách, tisk.
-- **Tmavý režim:** přepínač je v hlavičce. Dokud si nikdo nevybere, řídí se nastavením systému.
+- **Tmavý režim:** přepínač v hlavičce střídá vzhled podle systému, světlý a tmavý.
 - **Předlohy:** vzor je tvar a barevné kombinace jsou uvnitř něj. Jsou rozdělené podle techniky. Je jich 85, z toho 4 tvary se srdíčky s 86 kombinacemi.
 
 ## Techniky

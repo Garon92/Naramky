@@ -1,7 +1,7 @@
 // Ready-made patterns. A pattern is a shape. Colourways only change colours, so the
 // same shape in other colours stays one pattern. Every colour is a real catalogue bead.
 import { makeDesign, bandLengthMm, colsForWrist, applyColorway, WRIST_DEFAULT } from './design.js';
-import { generate, DEFAULT_SIZE } from '../techniques/peyote.js';
+import { generate, fittedWidth, DEFAULT_SIZE } from '../techniques/peyote.js';
 
 // 11 rows of Delica 15/0: the heart fills the band as in the images, about 1.3 cm wide,
 // with the same one free row above and below it.
@@ -26,6 +26,7 @@ const list = [];
 
 function addPeyote({ id, group, name, params, colorways }) {
   const full = { w: WIDTH, n: FULL_COLS, size: DEFAULT_SIZE, ...params };
+  full.w = fittedWidth(full) ?? full.w;
   list.push({
     id, group, name, colorways,
     make() {
@@ -298,7 +299,7 @@ addPeyote({
 });
 addPeyote({
   id: 'jedno', group: 'Další srdíčka', name: 'Jedno velké srdce',
-  params: { kind: 'motifs', w: 15, seq: ['heartL'], motifLabel: 'Srdce', motifGroup: 'Srdce', gap: 1 },
+  params: { kind: 'motifs', seq: ['heartL'], motifLabel: 'Srdce', motifGroup: 'Srdce', gap: 1 },
   colorways: [motifWay('Malinová', 'blush', 'raspberry', 'Srdce')],
 });
 addPeyote({
@@ -318,8 +319,9 @@ addPeyote({
   id: 'kvetiny', group: 'Hvězdy a květiny', name: 'Květiny',
   params: { kind: 'motifs', seq: Array(4).fill('flower'), motifLabel: 'Květina', motifGroup: 'Květiny', gap: 3 },
   colorways: [
-    motifWay('Louka', 'pistachio', 'hot yellow purple orange', 'Květiny'),
-    motifWay('Na krému', 'cream', 'raspberry lilac amber turq', 'Květiny'),
+    motifWay('Louka', 'pistachio', 'hot white purple orange', 'Květiny', { Středy: 'yellow' }),
+    motifWay('Na krému', 'cream', 'raspberry lilac royal turq', 'Květiny', { Středy: 'yellow' }),
+    motifWay('Kopretiny', 'sky', 'white white white white', 'Květiny', { Středy: 'yellow' }),
   ],
 });
 addPeyote({
@@ -456,8 +458,8 @@ addLoom({
   ways: [picture('Veselí', { Podklad: 'paleblue', Obličeje: 'yellow', Úsměvy: 'black' })],
 });
 addLoom({
-  id: 'zviratka', name: 'Mix obrázků', params: { kind: 'pixels', items: ['cat', 'tulip', 'butterfly', 'sun', 'fish'], gap: 3 },
-  ways: [picture('Na zahradě', { Podklad: 'cream', Kočičky: 'orange', Oči: 'emerald', Čumáčky: 'pink', Květy: 'red', Stonky: 'green', 'Horní křídla': 'purple', 'Spodní křídla': 'lilac', Tělíčka: 'black', Sluníčka: 'yellow', Paprsky: 'amber', Rybky: 'turq', Ploutve: 'royal' })],
+  id: 'zviratka', name: 'Mix obrázků', params: { kind: 'pixels', items: ['cat', 'mushroom', 'butterfly', 'sun', 'star'], gap: 3 },
+  ways: [picture('Na zahradě', { Podklad: 'cream', Kočičky: 'orange', Oči: 'emerald', Čumáčky: 'pink', Klobouky: 'red', 'Tečky a nožky': 'white', 'Horní křídla': 'purple', 'Spodní křídla': 'lilac', Tělíčka: 'black', Sluníčka: 'yellow', Paprsky: 'amber', Hvězdy: 'turq' })],
 });
 
 const tartan = (name, a, b, c) => picture(name, { Podklad: a, Pruh: b, Linka: c });

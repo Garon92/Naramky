@@ -6,6 +6,7 @@ import {
   applyColorway, setBeadSlot, extraSlotFor, pruneExtras, resetBead, removeExtraColor, EXTRA_GROUP, applyMotifSettings, applyWrist, TECHNIQUES,
 } from '../js/core/design.js';
 import { MOTIFS, parseMotif, placeMotif } from '../js/core/motifs.js';
+import { pixelSize } from '../js/core/pixels.js';
 import { bead, PALETTE, finishFromName, hasBead, codeOf } from '../js/core/catalog.js';
 import {
   grid, generate, threadPasses, floodFill, mirrorCell, NONE, runLength, ensureCells, GENERATORS, bandSize,
@@ -112,6 +113,51 @@ test('motifs have the same free rows above and below, in every pattern', () => {
       assert.equal(Math.min(...rows), w - 1 - Math.max(...rows), `${p.id}, motif ${i + 1}`);
     });
   }
+});
+
+test('a picture has exactly one free row above and below it', () => {
+  for (const p of PATTERNS) {
+    const part = p.make().parts[0];
+    if (part.tech !== 'peyote' || !['motifs', 'pixels'].includes(part.params.kind)) continue;
+    // Ends and triangles fill the free rows on purpose, so only the pictures are measured.
+    const { w, n } = part.params;
+    const { cells } = generate({ ...part.params, ends: 0, bg2: undefined });
+    const rows = [];
+    for (let r = 0; r < w; r++) {
+      for (let c = 0; c < n; c++) if (cells[r * n + c]) rows.push(r);
+    }
+    assert.equal(Math.min(...rows), 1, `${p.id} above`);
+    assert.equal(w - 1 - Math.max(...rows), 1, `${p.id} below`);
+    for (const id of part.params.items ?? []) assert.equal((w - pixelSize(id).rows) % 2, 0, `${p.id}: ${id}`);
+  }
+});
+
+test('the band follows the picture, and a width chosen by hand stays', () => {
+  const d = hearts();
+  const part = d.parts[0];
+  for (const [motif, w] of [['heartS', 9], ['heartM', 12], ['heartL', 15], ['heartN', 11]]) {
+    applyMotifSettings(d, part, { motif });
+    assert.equal(part.params.w, w, motif);
+  }
+  applyMotifSettings(d, part, { w: 15 });
+  assert.equal(part.params.w, 15);
+  applyMotifSettings(d, part, { count: 3 });
+  assert.equal(part.params.w, 15, 'more or fewer hearts do not touch a chosen width');
+  applyMotifSettings(d, part, { w: 14 });
+  assert.equal(part.params.w, 15, 'evened up, so the free rows match');
+});
+
+test('a flower has a centre in a colour of its own', () => {
+  const d = patternById('kvetiny').make();
+  const centre = groupsOf(d).find((g) => g.name === 'Středy');
+  assert.equal(centre.slots.length, 1, 'all flowers share one centre colour');
+  const { cells } = grid(d.parts[0]);
+  assert.equal(cells.filter((c) => c === centre.slots[0]).length, 4 * parseMotif('flower').beads.filter((b) => b.center).length);
+  const h = hearts();
+  applyMotifSettings(h, h.parts[0], { motif: 'flower' });
+  assert.equal(h.slots.find((x) => x.group === 'Středy').code, 'DB0721');
+  applyMotifSettings(h, h.parts[0], { motif: 'heartN' });
+  assert.equal(h.slots.some((x) => x.group === 'Středy'), false);
 });
 
 test('changing the motif keeps the free rows equal', () => {
