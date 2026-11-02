@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { PATTERNS, COLLECTIONS, patternById } from '../js/core/presets.js';
 import {
   encodeDesign, decodeDesign, materials, sceneSpec, clone, colsForWrist, groupsOf, groupOfSlot, setGroupColor,
-  applyColorway, setBeadSlot, addExtraColor, applyMotifSettings, applyWrist,
+  applyColorway, setBeadSlot, extraSlotFor, pruneExtras, resetBead, removeExtraColor, EXTRA_GROUP, applyMotifSettings, applyWrist, TECHNIQUES,
 } from '../js/core/design.js';
 import { MOTIFS, parseMotif, placeMotif } from '../js/core/motifs.js';
 import { bead, PALETTE, finishFromName, hasBead, codeOf } from '../js/core/catalog.js';
@@ -150,7 +150,7 @@ test('placed motifs land on real cells at both row parities', () => {
 
 test('every generator fills the lattice with valid slots', () => {
   for (const kind of GENERATORS) {
-    const params = { kind, w: 15, n: 60, seq: ['heartM'], colors: 3, weights: [0.5, 0.5] };
+    const params = { kind, w: 15, n: 60, seq: ['heartM'], colors: 3, weights: [0.5, 0.5], items: ['cat', 'heart'] };
     const { cells, roles } = generate(params);
     assert.equal(cells.length, 900, kind);
     for (const c of cells) assert.ok(c === NONE || c < roles.length, `${kind}: ${c} of ${roles.length}`);
@@ -176,18 +176,82 @@ test('colour can go to all objects of a kind or to one', () => {
   assert.equal(groupOfSlot(d, heartSlot + 2).name, 'Srdíčka');
 });
 
-test('a single bead or tile can differ from the rest, in every technique', () => {
-  for (const id of ['srdce', 'zigzag', 'sada-dva-zlate', 'sada-zigzag-medova']) {
-    const d = patternById(id).make();
-    const extra = addExtraColor(d, 'DB0727');
+test('a single bead can differ from the rest, in every technique, and go back', () => {
+  const seen = new Set();
+  for (const p of PATTERNS) {
+    const d = p.make();
+    seen.add(d.parts[0].tech);
+    const before = sceneSpec(d).instances.map((b) => b.slot).join();
     const pick = sceneSpec(d).instances[5];
-    setBeadSlot(d, pick, extra);
-    const after = sceneSpec(d).instances.filter((b) => b.slot === extra);
-    assert.equal(after.length, 1, id);
-    assert.equal(after[0].index, pick.index, id);
-    const back = decodeDesign(encodeDesign(d));
-    assert.equal(sceneSpec(back).instances.filter((b) => b.slot === extra).length, 1, `${id} in the link`);
-    assert.ok(materials(d).some((l) => l.code === 'DB0727' && l.count === 1), `${id} in materials`);
+    const original = pick.slot;
+    const slotCount = d.slots.length;
+    setBeadSlot(d, pick, extraSlotFor(d, 'DB0727'));
+    assert.equal(d.slots.length, slotCount + 1, p.id);
+    const painted = sceneSpec(d).instances.filter((b) => b.slot === slotCount);
+    assert.equal(painted.length, 1, p.id);
+    assert.equal(sceneSpec(decodeDesign(encodeDesign(d))).instances.filter((b) => b.slot === slotCount).length, 1, `${p.id} in the link`);
+    // Same colour reuses the slot, and going back removes the unused colour.
+    assert.equal(extraSlotFor(d, 'DB0727'), slotCount);
+    resetBead(d, { ...pick, slot: slotCount });
+    pruneExtras(d);
+    assert.equal(d.slots.length, slotCount, `${p.id}: colour disappears when unused`);
+    assert.equal(sceneSpec(d).instances[5].slot, original, p.id);
+    assert.equal(sceneSpec(d).instances.map((b) => b.slot).join(), before, p.id);
+  }
+  for (const tech of Object.keys(TECHNIQUES)) assert.ok(seen.has(tech), `technique ${tech} has a pattern`);
+});
+
+test('removing a colour of single beads returns them, and other slots keep their numbers right', () => {
+  const d = patternById('srdce').make();
+  const specs = sceneSpec(d).instances;
+  const a = extraSlotFor(d, 'DB0727');
+  setBeadSlot(d, specs[3], a);
+  const b = extraSlotFor(d, 'DB0721');
+  setBeadSlot(d, specs[4], b);
+  removeExtraColor(d, a);
+  assert.deepEqual(d.slots.filter((s) => s.group === EXTRA_GROUP).map((s) => s.code), ['DB0721']);
+  const after = sceneSpec(d).instances;
+  assert.equal(d.slots[after[4].slot].code, 'DB0721');
+  assert.equal(after[3].slot, specs[3].slot);
+});
+
+test('there are many different kinds of bead and of joining them', () => {
+  const shapes = new Set();
+  const techs = new Set();
+  for (const p of PATTERNS) {
+    const d = p.make();
+    for (const part of d.parts) techs.add(part.params.loom ? 'loom' : part.tech);
+    for (const b of sceneSpec(d).instances) shapes.add(b.shape);
+  }
+  assert.ok(techs.size >= 14, `${techs.size} ways of joining`);
+  assert.ok(shapes.size >= 14, `${shapes.size} kinds of bead: ${[...shapes].join()}`);
+});
+
+test('nothing sinks into the table', () => {
+  for (const p of PATTERNS) {
+    const spec = sceneSpec(p.make());
+    assert.ok(spec.lift >= 0.65 && Number.isFinite(spec.lift), `${p.id}: ${spec.lift}`);
+  }
+});
+
+test('pictures for the loom all fit their band and have a named colour for every part', () => {
+  for (const p of PATTERNS.filter((x) => x.id && x.make().parts[0].params.loom && x.make().parts[0].params.kind === 'pixels')) {
+    const d = p.make();
+    const { cells } = grid(d.parts[0]);
+    const used = new Set(cells);
+    d.slots.forEach((slot, i) => assert.ok(used.has(i), `${p.id}: ${slot.label} is never used`));
+    for (const way of p.colorways) {
+      for (const g of groupsOf(d)) assert.ok(way.colors[g.name] !== undefined, `${p.id}: ${way.name} has no colour for ${g.name}`);
+    }
+  }
+});
+
+test('every colour combination colours all parts of its pattern', () => {
+  for (const p of PATTERNS) {
+    const names = groupsOf(p.make()).map((g) => g.name);
+    for (const way of p.colorways) {
+      for (const name of names) assert.ok(way.colors[name] !== undefined, `${p.id}: ${way.name} misses ${name}`);
+    }
   }
 });
 

@@ -3,13 +3,28 @@
 import * as peyote from '../techniques/peyote.js';
 import * as tila from '../techniques/tila.js';
 import * as strand from '../techniques/strand.js';
-import { bead, codeOf, hasBead } from './catalog.js';
+import * as weaves from '../techniques/weaves.js';
+import { SHAPES, reach } from './shapes.js';
+import { bead, codeOf, hasBead, czName } from './catalog.js';
 import { parseMotif } from './motifs.js';
 
 export const TECHNIQUES = {
   peyote: { label: 'Šitý pás Delica', mod: peyote, paint: true },
   tila: { label: 'Šitý zig-zag', mod: tila },
   strand: { label: 'Navlékaný', mod: strand },
+  herringbone: { label: 'Rybí kost', mod: weaves.herringbone },
+  raw: { label: 'Pravoúhlé tkaní', mod: weaves.raw },
+  spiral: { label: 'Spirálový provaz', mod: weaves.spiral },
+  rope: { label: 'Háčkovaný provaz', mod: weaves.rope },
+  daisy: { label: 'Kytičkový řetěz', mod: weaves.daisy },
+  net: { label: 'Síťka', mod: weaves.net },
+  petersburg: { label: 'Petrohradský řetěz', mod: weaves.petersburg },
+  macrame: { label: 'Makramé s kuličkami', mod: weaves.macrame },
+  fringe: { label: 'Střapatý provaz', mod: weaves.fringe },
+  tilagrid: { label: 'Mozaika z Tila', mod: weaves.tilagrid },
+  ladder: { label: 'Žebříček z tyčinek', mod: weaves.ladder },
+  buglezig: { label: 'Cik-cak z tyčinek', mod: weaves.buglezig },
+  letters: { label: 'Kostky s písmeny', mod: weaves.letters },
 };
 
 const techOf = (part) => TECHNIQUES[part.tech].mod;
@@ -27,7 +42,7 @@ export function colsForWrist(wristCm, beadDiameter) {
   return Math.max(16, Math.round(bandLengthMm(wristCm) / beadDiameter));
 }
 
-export function makeDesign({ name, slots, parts, metal = 'steel', surface = 'backdrop', wrist = WRIST_DEFAULT, note = '', preset = null, pose }) {
+export function makeDesign({ name, slots, parts, metal = 'steel', surface = 'white', wrist = WRIST_DEFAULT, note = '', preset = null, pose }) {
   return {
     v: 2, name, note, wrist, metal, surface, preset, pose, colorway: null,
     slots: slots.map((s) => ({ label: s.label, group: s.group ?? s.label, code: codeOf(s.code) })),
@@ -102,10 +117,68 @@ export function setBeadSlot(d, inst, slot) {
   }
 }
 
-export function addExtraColor(d, code) {
-  const n = d.slots.filter((s) => s.group === 'Další barvy').length + 1;
-  d.slots.push({ label: `Barva ${n}`, group: 'Další barvy', code });
+// Beads recoloured one by one keep their colours in slots of this group. The group
+// only exists while some bead uses it.
+export const EXTRA_GROUP = 'Přebarvené kusy';
+
+export function extraSlotFor(d, code) {
+  const found = d.slots.findIndex((x) => x.group === EXTRA_GROUP && x.code === code);
+  if (found >= 0) return found;
+  d.slots.push({ label: czName(code), group: EXTRA_GROUP, code });
   return d.slots.length - 1;
+}
+
+function usedSlots(d) {
+  const used = new Set();
+  for (const part of d.parts) for (const b of techOf(part).build(part).instances) used.add(b.slot);
+  return used;
+}
+
+// Drops colours no bead uses any more, and renumbers everything after them.
+export function pruneExtras(d) {
+  const used = usedSlots(d);
+  const remap = new Map();
+  const next = [];
+  d.slots.forEach((slot, i) => {
+    if (slot.group === EXTRA_GROUP && !used.has(i)) return;
+    remap.set(i, next.length);
+    next.push(slot);
+  });
+  if (next.length === d.slots.length) return remap;
+  d.slots = next;
+  for (const part of d.parts) {
+    if (part.cells) part.cells = part.cells.map((v) => (v === peyote.NONE ? v : remap.get(v) ?? 0));
+    if (part.params.over) {
+      part.params.over = Object.fromEntries(Object.entries(part.params.over).map(([k, v]) => [k, remap.get(v) ?? 0]));
+    }
+    for (const strandItem of part.params.strands ?? []) for (const item of strandItem.seq) item[0] = remap.get(item[0]) ?? 0;
+  }
+  return remap;
+}
+
+// Puts one bead back to what the pattern itself says.
+export function resetBead(d, inst) {
+  const part = d.parts[inst.part];
+  if (part.tech === 'peyote') {
+    const index = inst.row * part.params.n + inst.col;
+    peyote.ensureCells(part)[index] = peyote.generate(part.params).cells[index];
+  } else if (part.params.over) {
+    const { [inst.index]: _, ...rest } = part.params.over;
+    part.params.over = rest;
+  }
+}
+
+// Removes a colour used for single beads: they all return to the pattern.
+export function removeExtraColor(d, slot) {
+  for (const part of d.parts) {
+    if (part.tech === 'peyote' && part.cells) {
+      const original = peyote.generate(part.params).cells;
+      part.cells = part.cells.map((v, i) => (v === slot ? original[i] : v));
+    } else if (part.params.over) {
+      part.params.over = Object.fromEntries(Object.entries(part.params.over).filter(([, v]) => v !== slot));
+    }
+  }
+  pruneExtras(d);
 }
 
 export function applyWrist(d, wrist) {
@@ -162,24 +235,30 @@ export function sceneSpec(d) {
   const total = built.reduce((sum, x) => sum + x.b.width, 0) + spacing * (built.length - 1);
   let cursor = -total / 2;
   const instances = [];
+  const decals = [];
   let length = 0;
   let bed = null;
+  let lift = 0.75;
+  let noClasp = false;
   built.forEach(({ b }, partIndex) => {
     const offset = cursor + b.width / 2;
     b.instances.forEach((inst, index) => {
       const slot = d.slots[inst.slot] ?? d.slots[0];
       const info = bead(slot.code);
-      instances.push({ ...inst, t: inst.t + offset, hex: info.hex, finish: info.finish, part: partIndex, index });
+      instances.push({ ...inst, t: inst.t + offset, hex: info.hex, finish: SHAPES[inst.shape].finish ?? info.finish, part: partIndex, index });
+      lift = Math.max(lift, Math.abs(inst.h ?? 0) + reach(inst.shape));
     });
+    for (const mark of b.decals ?? []) decals.push({ ...mark, t: mark.t + offset, hex: bead(d.slots[mark.slot].code).hex });
+    if (b.noClasp) noClasp = true;
     if (b.bed && !bed) bed = { ...b.bed, tMin: b.bed.tMin + offset, tMax: b.bed.tMax + offset };
     cursor += b.width + spacing;
     length = Math.max(length, b.length);
   });
   const frameHeight = Math.max(total * 2.4, ...built.map((x) => x.b.frameHeight ?? 0));
   return {
-    instances, length, width: total, bed, frameHeight,
+    instances, decals, length, width: total, bed, frameHeight, lift,
     poseKind: d.pose,
-    findings: { metal: d.metal, chainLinks: 18 },
+    findings: noClasp ? null : { metal: d.metal, chainLinks: 18 },
   };
 }
 
@@ -208,10 +287,10 @@ export function focusSpan(d) {
 export function materials(d) {
   const lines = new Map();
   for (const part of d.parts) {
-    for (const { slot, count, shape, perGram, material } of techOf(part).counts(part)) {
+    for (const { slot, count, shape, perGram, material, noCount } of techOf(part).counts(part)) {
       const code = d.slots[slot]?.code ?? d.slots[0].code;
       const key = `${material}|${code}`;
-      const prev = lines.get(key) ?? { material, code, shape, count: 0, perGram, labels: new Set() };
+      const prev = lines.get(key) ?? { material, code, shape, count: 0, perGram, noCount, labels: new Set() };
       prev.count += count;
       const lab = d.slots[slot]?.label;
       if (lab) prev.labels.add(lab);
@@ -254,7 +333,7 @@ function textToCells(text, size) {
   return cells;
 }
 
-const b64 = {
+export const b64 = {
   encode(str) {
     const bytes = new TextEncoder().encode(str);
     let bin = '';
@@ -286,13 +365,14 @@ export function decodeDesign(text) {
   });
   const parts = data.p.map((p) => {
     if (!TECHNIQUES[p.t]) throw new Error('Neznámá technika');
+    if ((p.a?.w ?? 0) > 64 || (p.a?.n ?? 0) > 800) throw new Error('Příliš velký vzor');
     const part = { tech: p.t, params: p.a, cells: null };
     if (p.c) part.cells = textToCells(p.c, p.a.w * p.a.n);
     return part;
   });
   return {
     v: 2, name: String(data.n ?? 'Návrh').slice(0, 80), note: String(data.o ?? '').slice(0, 500), colorway: data.y ?? null,
-    wrist: Number(data.w) || WRIST_DEFAULT, metal: data.m ?? 'steel', surface: data.f ?? 'backdrop',
+    wrist: Number(data.w) || WRIST_DEFAULT, metal: data.m ?? 'steel', surface: data.f ?? 'white',
     preset: data.r ?? null, pose: data.a, slots, parts,
   };
 }

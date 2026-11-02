@@ -3,6 +3,7 @@
 // A bead on row r, column c sits at x = c + (r % 2) / 2 beads along the band.
 import { SHAPES } from '../core/shapes.js';
 import { parseMotif, placeMotif } from '../core/motifs.js';
+import { PIXELS, placePixels, pixelSize } from '../core/pixels.js';
 
 export const NONE = 255;
 
@@ -14,6 +15,8 @@ export const BEAD_SIZES = {
 export const DEFAULT_SIZE = 15;
 
 const beadX = (r, c) => c + (r % 2) / 2;
+// Loom work has no half-bead shift: beads sit in a straight grid.
+const gridX = (part, r, c) => (part.params.loom ? c : beadX(r, c));
 const plainRoles = (labels) => labels.map((label) => ({ label, group: label }));
 
 function taper(cells, w, n) {
@@ -27,6 +30,8 @@ function taper(cells, w, n) {
     }
   }
 }
+
+const pixelsWidth = ({ items, gap = 2 }) => items.reduce((sum, id) => sum + pixelSize(id).cols, 0) + gap * (items.length - 1);
 
 const generators = {
   // A row of motifs. Every motif, spacer and end is its own slot, so each can be
@@ -236,10 +241,119 @@ const generators = {
   },
 };
 
+// --- Loom patterns, in a straight grid ---
+
+Object.assign(generators, {
+  // A row of little pictures. Every named part is one colour, shared by all pictures.
+  pixels(p, w, n) {
+    const cells = new Uint8Array(w * n);
+    const { items } = p;
+    const roles = [{ label: 'Podklad', group: 'Podklad' }];
+    const slotOf = new Map();
+    // The first part of each picture is its own object, so it can differ picture by picture.
+    const mainSlot = items.map((id, i) => {
+      const main = Object.values(PIXELS[id].legend)[0];
+      const label = p.split ? `${PIXELS[id].label} ${i + 1}` : main;
+      if (!p.split && slotOf.has(main)) return slotOf.get(main);
+      roles.push({ label, group: p.splitGroup ?? main });
+      if (!p.split) slotOf.set(main, roles.length - 1);
+      return roles.length - 1;
+    });
+    items.forEach((id) => {
+      for (const name of Object.values(PIXELS[id].legend).slice(1)) {
+        if (!slotOf.has(name)) {
+          slotOf.set(name, roles.length);
+          roles.push({ label: name, group: name });
+        }
+      }
+    });
+    const gap = p.gap ?? 2;
+    let c = Math.round((n - pixelsWidth(p)) / 2);
+    items.forEach((id, i) => {
+      const { rows, cols } = pixelSize(id);
+      const legend = PIXELS[id].legend;
+      const mainKey = Object.keys(legend)[0];
+      for (const bead of placePixels(id, c, Math.floor((w - rows) / 2), w, n)) {
+        cells[bead.r * n + bead.c] = bead.part === mainKey ? mainSlot[i] : slotOf.get(legend[bead.part]);
+      }
+      c += cols + gap;
+    });
+    return { cells, roles };
+  },
+
+  // Plaid: crossing bands of colour. Where they meet, the darker one wins every other bead.
+  tartan(p, w, n) {
+    const cells = new Uint8Array(w * n);
+    const rowBands = p.rowBands ?? [0, 0, 1, 1, 0, 0, 2, 0, 0, 1, 1, 0, 0];
+    const colBands = p.colBands ?? [0, 0, 0, 1, 1, 0, 0, 0, 2];
+    for (let r = 0; r < w; r++) {
+      for (let c = 0; c < n; c++) {
+        const a = rowBands[r % rowBands.length];
+        const b = colBands[c % colBands.length];
+        cells[r * n + c] = a && b ? ((r + c) % 2 ? a : b) : a || b;
+      }
+    }
+    return { cells, roles: plainRoles(['Podklad', 'Pruh', 'Linka']) };
+  },
+
+  // Aztec: stepped diamonds nested inside each other.
+  aztec(p, w, n) {
+    const cells = new Uint8Array(w * n);
+    const period = p.period ?? 16;
+    const mid = (w - 1) / 2;
+    const layers = p.layers ?? 4;
+    for (let r = 0; r < w; r++) {
+      for (let c = 0; c < n; c++) {
+        const dx = Math.abs(((c + period / 2) % period) - period / 2);
+        const d = Math.floor((dx + Math.abs(r - mid)) / 2);
+        cells[r * n + c] = d < layers ? d + 1 : 0;
+      }
+    }
+    return { cells, roles: plainRoles(['Podklad', 'Střed', 'První lem', 'Druhý lem', 'Třetí lem'].slice(0, layers + 1)) };
+  },
+
+  // Ikat: soft zigzags with feathered edges, as if the dye had run.
+  ikat(p, w, n) {
+    const cells = new Uint8Array(w * n);
+    const colors = p.colors ?? 3;
+    const band = p.band ?? 5;
+    const period = p.period ?? 18;
+    for (let r = 0; r < w; r++) {
+      for (let c = 0; c < n; c++) {
+        const zig = Math.abs(((c % period) / period) * 2 - 1) * (w - 1);
+        const noise = Math.abs(Math.sin(r * 91.7 + c * 12.3) * 43758.5453) % 1;
+        cells[r * n + c] = Math.floor((r + zig + (noise - 0.5) * 2.2 + w) / band) % colors;
+      }
+    }
+    return { cells, roles: plainRoles(Array.from({ length: colors }, (_, i) => `Barva ${i + 1}`)) };
+  },
+
+  // A little landscape: evening sky, sun and hills along the whole band.
+  landscape(p, w, n) {
+    const cells = new Uint8Array(w * n);
+    const sunC = n / 2;
+    for (let r = 0; r < w; r++) {
+      for (let c = 0; c < n; c++) {
+        const sky = Math.min(2, Math.floor((r / (w * 0.72)) * 3));
+        const noise = Math.abs(Math.sin(r * 33.1 + c * 7.7) * 9731.3) % 1;
+        let slot = noise < 0.16 ? Math.max(0, sky - 1) : sky;
+        if (Math.hypot(c - sunC, (r - w * 0.42) * 1.15) < 3.6) slot = 3;
+        const hill = w * 0.62 + Math.sin(c * 0.21) * 1.5 + Math.sin(c * 0.09 + 1.2) * 1.2;
+        const far = w * 0.72 + Math.sin(c * 0.33 + 2) * 1.2;
+        if (r >= far) slot = 5;
+        else if (r >= hill) slot = 4;
+        cells[r * n + c] = slot;
+      }
+    }
+    return { cells, roles: plainRoles(['Obloha nahoře', 'Obloha uprostřed', 'Obloha u obzoru', 'Slunce', 'Vzdálené kopce', 'Blízké kopce']) };
+  },
+});
+
 export const GENERATORS = Object.keys(generators);
 
 // Shortest band that still shows the whole row of motifs, for gallery cards.
 export function compactColumns(p) {
+  if (p.kind === 'pixels') return pixelsWidth(p) + 4;
   const widths = p.seq.map((id) => parseMotif(id).widthBeads);
   const spacer = p.spacer ? parseMotif(p.spacer).widthBeads + (p.gap ?? 2) : 0;
   const motifs = widths.reduce((a, b) => a + b, 0) + ((p.gap ?? 2) + spacer) * (widths.length - 1);
@@ -269,8 +383,8 @@ export function beadDims(part) {
 // Real size in millimetres. Along the band a bead takes its diameter, across its length.
 export function bandSize(part) {
   const { D, L } = beadDims(part);
-  const { w, n } = part.params;
-  return { width: w * L, length: (n + 0.5) * D };
+  const { w, n, loom } = part.params;
+  return { width: w * L, length: (n + (loom ? 0 : 0.5)) * D };
 }
 
 export function build(part) {
@@ -283,7 +397,7 @@ export function build(part) {
       if (slot === NONE) continue;
       instances.push({
         shape, slot,
-        s: (beadX(r, c) - (n - 0.5) / 2) * D,
+        s: (gridX(part, r, c) - (part.params.loom ? n - 1 : n - 0.5) / 2) * D,
         t: (r - (w - 1) / 2) * L,
         row: r, col: c,
       });
@@ -311,6 +425,14 @@ export function counts(part) {
 export function threadPasses(part) {
   const { w, n, cells } = grid(part);
   const passes = [];
+  if (part.params.loom) {
+    for (let c = 0; c < n; c++) {
+      const list = [];
+      for (let r = 0; r < w; r++) if (cells[r * n + c] !== NONE) list.push(cells[r * n + c]);
+      passes.push({ label: `${c + 1}. řada`, dir: '→', slots: list });
+    }
+    return passes;
+  }
   const rowsOf = (parity) => {
     const list = [];
     for (let r = 0; r < w; r++) if (r % 2 === parity) list.push(r);
@@ -345,6 +467,14 @@ export const runLength = (slots) => {
 
 export const steps = (part) => {
   const { w } = part.params;
+  if (part.params.loom) {
+    return [
+      `Technika: tkaní na stavu, ${w} korálků v každé řadě, takže osnova má ${w + 1} nití.`,
+      'Na útkovou nit navlékni korálky řady podle postupu, přilož je mezi osnovní nitě a provleč nit zpět nad osnovou.',
+      'Pokračuj řadu po řadě. Místo stavu jde šít i čtvercovým stehem, korálky pak leží stejně.',
+      'Na konci zapošij osnovní nitě zpět do řad a přidej komponenty.',
+    ];
+  }
   const even = w % 2 === 0;
   return [
     `Technika: plochý peyote, ${w} korálků na šířku (${even ? 'sudý počet, even-count' : 'lichý počet, odd-count'}).`,
@@ -363,7 +493,7 @@ export function ensureCells(part) {
   return part.cells;
 }
 
-export function floodFill(cells, w, n, r0, c0, slot) {
+export function floodFill(cells, w, n, r0, c0, slot, loom = false) {
   const from = cells[r0 * n + c0];
   if (from === slot || from === NONE) return 0;
   const stack = [[r0, c0]];
@@ -373,16 +503,22 @@ export function floodFill(cells, w, n, r0, c0, slot) {
     if (r < 0 || r >= w || c < 0 || c >= n || cells[r * n + c] !== from) continue;
     cells[r * n + c] = slot;
     changed++;
-    // Rows interlock, so each bead touches two beads above and two below.
+    stack.push([r, c - 1], [r, c + 1], [r - 1, c], [r + 1, c]);
+    // Peyote rows interlock, so each bead touches two beads above and two below.
     const side = r % 2 ? 1 : -1;
-    stack.push([r, c - 1], [r, c + 1]);
-    stack.push([r - 1, c], [r - 1, c + side], [r + 1, c], [r + 1, c + side]);
+    if (!loom) stack.push([r - 1, c + side], [r + 1, c + side]);
   }
   return changed;
 }
 
-export function mirrorCell(r, c, w, n, mirrorX, mirrorY) {
+export function mirrorCell(r, c, w, n, mirrorX, mirrorY, loom = false) {
   const out = [[r, c]];
+  if (loom) {
+    if (mirrorX) out.push([r, n - 1 - c]);
+    if (mirrorY) out.push([w - 1 - r, c]);
+    if (mirrorX && mirrorY) out.push([w - 1 - r, n - 1 - c]);
+    return out;
+  }
   // Mirroring along the length keeps the row shift only around a bead-centred axis.
   const mx = (rr, cc) => [rr, n - 1 - cc - (rr % 2)];
   // Mirroring across the width swaps rows, adjusting for the shift when parity changes.

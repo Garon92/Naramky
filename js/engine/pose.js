@@ -2,7 +2,7 @@
 // (mm, 0 at the centre) to a point and an orthonormal frame:
 //   T along the band, N the band normal, B across the band (T x N).
 
-export function makePose(kind, totalLength, bandWidth) {
+export function makePose(kind, totalLength, bandWidth, lift = 0.75) {
   if (kind === 'loop') {
     // Standing ring on its edge, the classic product shot on a table.
     const R = (totalLength + 8) / (Math.PI * 2);
@@ -48,7 +48,7 @@ export function makePose(kind, totalLength, bandWidth) {
         const nl = Math.hypot(nx, ny, nz);
         nx /= nl; ny /= nl; nz /= nl;
         return {
-          px: s, py: y0 + 0.75, pz: z0,
+          px: s, py: y0 + lift, pz: z0,
           tx, ty, tz,
           nx, ny, nz,
           bx: ty * nz - tz * ny, by: tz * nx - tx * nz, bz: tx * ny - ty * nx,
@@ -59,7 +59,6 @@ export function makePose(kind, totalLength, bandWidth) {
   // Default: a gently bowed strip. Centre rests on the table, ends lift off it,
   // which is how a stiff peyote band really lies and gives a shadow to read depth.
   const R = kind === 'flat' ? 1200 : 460;
-  const lift = 0.75;
   return {
     kind,
     radius: R,

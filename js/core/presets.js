@@ -12,7 +12,7 @@ const HEARTS = ['heartN', 'heartN', 'heartN', 'heartN'];
 
 export const COLLECTIONS = [
   { id: 'hearts', label: 'Srdíčka', hint: 'Barevné kombinace si přepneš přímo v návrhu.' },
-  { id: 'other', label: 'Šité a navlékané', hint: 'Další druhy náramků. Postup je u nich zatím jen orientační.' },
+  { id: 'other', label: 'Různé techniky', hint: 'Jiné korálky a jiné způsoby šití, tkaní a uzlování. Postup je u nich jen orientační.' },
   { id: 'inspire', label: 'Další motivy', hint: 'Co k tomu tematicky sedí.' },
 ];
 
@@ -36,8 +36,8 @@ function addPeyote({ id, collection = 'inspire', group, name, params, colorways 
 const heartColors = (bg, hearts, extra = {}) => ({ Podklad: bg, Srdíčka: hearts.split(' '), ...extra });
 
 const GROUND = {
-  'Modrý podklad': ['paleblue', [
-    ['Nebeská harmonie', 'cobalt turq pink lilac'], ['Modrá svěžest', 'white royal green yellow'],
+  'Modrý podklad': ['heaven', [
+    ['Nebeská harmonie', 'royal aqua pink lilac'], ['Modrá svěžest', 'white royal green yellow'],
     ['Letní nebe', 'yellow sky purple pink'], ['Ledová duha', 'cobalt white pink purple'],
     ['Tyrkysový vítr', 'aqua green yellow pink'], ['Arktická', 'navy sky lilac white'],
     ['Jarní obloha', 'green yellow pink purple'], ['Jemná modrá', 'white aqua royal pink'],
@@ -49,28 +49,28 @@ const GROUND = {
     ['Bohémská', 'teal yellow pink green'], ['Krémová svěžest', 'royal sky white pink'],
   ]],
   'Žlutý podklad': ['paleyellow', [
-    ['Sluneční energie', 'royal green pink purple'], ['Jarní slunce', 'turq royal lilac white'],
-    ['Veselá žlutá', 'royal white pink green'], ['Letní záře', 'turq purple pink royal'],
+    ['Sluneční energie', 'royal green pink purple'], ['Jarní slunce', 'aqua royal lilac white'],
+    ['Veselá žlutá', 'royal white pink green'], ['Letní záře', 'aqua purple pink royal'],
     ['Citrusová', 'emerald royal yellow pink'], ['Medová', 'purple royal white pink'],
-    ['Teplá duha', 'turq teal purple pink'], ['Sluneční louka', 'royal yellow pink purple'],
+    ['Teplá duha', 'aqua teal purple pink'], ['Sluneční louka', 'royal yellow pink purple'],
   ]],
   'Zelený podklad': ['pistachio', [
-    ['Jarní zeleň', 'royal yellow pink purple'], ['Svěží louka', 'white turq royal pink'],
-    ['Přírodní harmonie', 'yellow royal lilac pink'], ['Lesní vánek', 'turq white pink purple'],
+    ['Jarní zeleň', 'royal yellow pink purple'], ['Svěží louka', 'white aqua royal pink'],
+    ['Přírodní harmonie', 'yellow royal lilac pink'], ['Lesní vánek', 'aqua white pink purple'],
     ['Jarní probuzení', 'royal green yellow pink'], ['Zelená elegance', 'purple pink white royal'],
-    ['Zahradní', 'yellow turq pink purple'], ['Jemná pistácie', 'white green royal pink'],
+    ['Zahradní', 'yellow aqua pink purple'], ['Jemná pistácie', 'white green royal pink'],
   ]],
   'Fialový podklad': ['lavender', [
     ['Levandulové ráno', 'royal pink yellow aqua'], ['Fialová pohoda', 'white royal pink yellow'],
-    ['Květnová', 'turq lilac pink green'], ['Fialová duha', 'yellow royal white pink'],
+    ['Květnová', 'aqua lilac pink green'], ['Fialová duha', 'yellow royal white pink'],
     ['Romantická fialová', 'cobalt aqua purple pink'], ['Jarní fialka', 'green yellow pink white'],
     ['Jemná levandule', 'white lilac royal pink'], ['Večerní fialová', 'yellow purple aqua pink'],
   ]],
   'Růžový podklad': ['blush', [
-    ['Růžová radost', 'royal yellow green purple'], ['Jemná růžová', 'white turq purple yellow'],
-    ['Květinová', 'royal pink white green'], ['Sladká růže', 'yellow turq lilac purple'],
-    ['Růžová louka', 'green royal pink yellow'], ['Jarní růžová', 'turq white pink purple'],
-    ['Růžový sen', 'purple yellow royal white'], ['Veselá růžová', 'royal turq yellow pink'],
+    ['Růžová radost', 'royal yellow green purple'], ['Jemná růžová', 'white aqua purple yellow'],
+    ['Květinová', 'royal pink white green'], ['Sladká růže', 'yellow aqua lilac purple'],
+    ['Růžová louka', 'green royal pink yellow'], ['Jarní růžová', 'aqua white pink purple'],
+    ['Růžový sen', 'purple yellow royal white'], ['Veselá růžová', 'royal aqua yellow pink'],
   ]],
 };
 
@@ -259,7 +259,7 @@ const SETS = [
 for (const set of SETS) {
   const id = `sada-${set.slug}`;
   list.push({
-    id, collection: 'other', group: set.tila ? 'Sady se zig-zagem' : 'Navlékané', name: set.name, colorways: [],
+    id, collection: 'other', group: set.tila ? 'Sady se zig-zagem' : 'Navlékané prameny', name: set.name, colorways: [],
     make() {
       const slots = set.slots.map((code, i) => {
         const label = set.tila && i < 3 ? TILA_GROUPS[i] : `Barva ${i + 1}`;
@@ -370,6 +370,150 @@ addPeyote({
   params: { kind: 'ombre', colors: 7, mirror: false, dither: 0.7 },
   colorways: [OMBRE('Duha', 'purple', 'royal', 'turq', 'green', 'yellow', 'orange', 'hot')],
 });
+
+// --- Other kinds of beads and other ways of joining them ---
+
+function addTech({ id, group, name, tech, params = {}, labels, ways: rows, metal }) {
+  const colorways = rows.map(([wayName, ...codes]) => ({
+    name: wayName, colors: Object.fromEntries(labels.map((label, i) => [label, codes[i]])),
+  }));
+  list.push({
+    id, collection: 'other', group, name, colorways,
+    make() {
+      const d = makeDesign({
+        name, preset: id, metal,
+        slots: labels.map((label) => ({ label, group: label, code: 'white' })),
+        parts: [{ tech, params: { lengthMm: BAND_MM, ...JSON.parse(JSON.stringify(params)) }, cells: null }],
+      });
+      applyColorway(d, colorways[0]);
+      return d;
+    },
+  });
+}
+
+function addLoom({ id, group = 'Tkané obrázky', name, params, ways: colorways }) {
+  addPeyote({ id, collection: 'other', group, name, params: { w: 13, size: 11, n: colsForWrist(WRIST_DEFAULT, 1.6), loom: true, ...params }, colorways });
+}
+
+const picture = (name, colors) => ({ name, colors });
+const fourTimes = (item) => [item, item, item, item];
+
+addLoom({
+  id: 'tkane-srdce', name: 'Tkaná srdíčka', params: { kind: 'pixels', items: fourTimes('heart'), split: true, splitGroup: 'Srdíčka', gap: 3 },
+  ways: [
+    picture('Čtyři barvy', { Podklad: 'pearl', Srdíčka: ['royal', 'hot', 'turq', 'amber'] }),
+    picture('Na půlnoční', { Podklad: 'navy', Srdíčka: ['pink', 'sky', 'yellow', 'lilac'] }),
+  ],
+});
+addLoom({
+  id: 'kocicky', name: 'Kočičky', params: { kind: 'pixels', items: fourTimes('cat'), split: true, splitGroup: 'Kočičky', gap: 4 },
+  ways: [
+    picture('Zrzka, šedka a spol.', { Podklad: 'paleblue', Kočičky: ['orange', 'gray', 'black', 'cream'], Oči: 'emerald', Čumáčky: 'pink' }),
+    picture('Barevné', { Podklad: 'cream', Kočičky: ['lilac', 'turq', 'hot', 'amber'], Oči: 'black', Čumáčky: 'raspberry' }),
+  ],
+});
+addLoom({
+  id: 'jahody', name: 'Jahody', params: { kind: 'pixels', items: fourTimes('strawberry'), gap: 4 },
+  ways: [
+    picture('Zralé', { Podklad: 'cream', Lístky: 'green', Jahody: 'red', Semínka: 'paleyellow' }),
+    picture('Na mátové', { Podklad: 'mint', Lístky: 'emerald', Jahody: 'hot', Semínka: 'white' }),
+  ],
+});
+addLoom({
+  id: 'muchomurky', name: 'Muchomůrky', params: { kind: 'pixels', items: fourTimes('mushroom'), gap: 4 },
+  ways: [
+    picture('Z lesa', { Podklad: 'forest', Klobouky: 'red', 'Tečky a nožky': 'white' }),
+    picture('Pohádkové', { Podklad: 'lavender', Klobouky: 'purple', 'Tečky a nožky': 'paleyellow' }),
+  ],
+});
+addLoom({
+  id: 'motyli', name: 'Motýli', params: { kind: 'pixels', items: fourTimes('butterfly'), gap: 4 },
+  ways: [
+    picture('Luční', { Podklad: 'pistachio', 'Horní křídla': 'hot', 'Spodní křídla': 'amber', Tělíčka: 'black' }),
+    picture('Modrásek', { Podklad: 'white', 'Horní křídla': 'royal', 'Spodní křídla': 'sky', Tělíčka: 'navy' }),
+  ],
+});
+addLoom({
+  id: 'tulipany', name: 'Tulipány', params: { kind: 'pixels', items: Array(5).fill('tulip'), split: true, splitGroup: 'Květy', gap: 3 },
+  ways: [picture('Jarní', { Podklad: 'paleblue', Květy: ['red', 'yellow', 'hot', 'purple', 'orange'], Stonky: 'green' })],
+});
+addLoom({
+  id: 'rybicky', name: 'Rybičky', params: { kind: 'pixels', items: fourTimes('fish'), split: true, splitGroup: 'Rybky', gap: 3 },
+  ways: [picture('V moři', { Podklad: 'cobalt', Rybky: ['amber', 'hot', 'lime', 'orange'], Oči: 'black', Ploutve: 'white' })],
+});
+addLoom({
+  id: 'hvezdicky', name: 'Hvězdičky', params: { kind: 'pixels', items: Array(5).fill('star'), split: true, splitGroup: 'Hvězdy', gap: 2 },
+  ways: [picture('Noční obloha', { Podklad: 'navy', Hvězdy: ['gold', 'paleyellow', 'gold', 'paleyellow', 'gold'] })],
+});
+addLoom({
+  id: 'smajlici', name: 'Smajlíci', params: { kind: 'pixels', items: fourTimes('smile'), gap: 3 },
+  ways: [picture('Veselí', { Podklad: 'paleblue', Obličeje: 'yellow', Úsměvy: 'black' })],
+});
+addLoom({
+  id: 'zviratka', name: 'Mix obrázků', params: { kind: 'pixels', items: ['cat', 'tulip', 'butterfly', 'sun', 'fish'], gap: 3 },
+  ways: [picture('Na zahradě', { Podklad: 'cream', Kočičky: 'orange', Oči: 'emerald', Čumáčky: 'pink', Květy: 'red', Stonky: 'green', 'Horní křídla': 'purple', 'Spodní křídla': 'lilac', Tělíčka: 'black', Sluníčka: 'yellow', Paprsky: 'amber', Rybky: 'turq', Ploutve: 'royal' })],
+});
+
+const tartan = (name, a, b, c) => picture(name, { Podklad: a, Pruh: b, Linka: c });
+addLoom({
+  id: 'tartan', group: 'Tkané vzory', name: 'Skotská kostka', params: { kind: 'tartan' },
+  ways: [tartan('Královská', 'royal', 'forest', 'yellow'), tartan('Růžová', 'blush', 'raspberry', 'white'), tartan('Podzimní', 'cream', 'berry', 'amber')],
+});
+const steps4 = (name, ...codes) => picture(name, Object.fromEntries(['Podklad', 'Střed', 'První lem', 'Druhý lem', 'Třetí lem'].map((k, i) => [k, codes[i]])));
+addLoom({
+  id: 'azteky', group: 'Tkané vzory', name: 'Aztécké stupně', params: { kind: 'aztec' },
+  ways: [steps4('Slunce a tyrkys', 'black', 'gold', 'turq', 'red', 'cream'), steps4('Pastel', 'white', 'lilac', 'pink', 'paleblue', 'mint')],
+});
+const barvy = (name, ...codes) => picture(name, Object.fromEntries(codes.map((code, i) => [`Barva ${i + 1}`, code])));
+addLoom({
+  id: 'ikat', group: 'Tkané vzory', name: 'Ikat', params: { kind: 'ikat' },
+  ways: [barvy('Indigo', 'navy', 'white', 'sky'), barvy('Rozpité víno', 'berry', 'blush', 'amber')],
+});
+const sky = (name, ...codes) => picture(name, Object.fromEntries(['Obloha nahoře', 'Obloha uprostřed', 'Obloha u obzoru', 'Slunce', 'Vzdálené kopce', 'Blízké kopce'].map((k, i) => [k, codes[i]])));
+addLoom({
+  id: 'krajina', group: 'Tkané vzory', name: 'Krajina', params: { kind: 'landscape' },
+  ways: [sky('Západ slunce', 'purple', 'hot', 'orange', 'yellow', 'berry', 'navy'), sky('Letní den', 'sky', 'paleblue', 'white', 'yellow', 'emerald', 'green'), sky('Noc', 'navy', 'cobalt', 'deep', 'pearl', 'forest', 'black')],
+});
+
+addTech({ id: 'rybi-pruhy', group: 'Šité stehy', name: 'Rybí kost s pruhy', tech: 'herringbone', params: { pairs: 3 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Moře', 'cobalt', 'turq', 'white'], ['Malina', 'raspberry', 'blush', 'gold']] });
+addTech({ id: 'rybi-cikcak', group: 'Šité stehy', name: 'Rybí kost s cik-cakem', tech: 'herringbone', params: { pairs: 4, mode: 'zigzag', band: 4 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Oheň', 'red', 'orange', 'yellow'], ['Les', 'forest', 'green', 'pistachio']] });
+addTech({ id: 'rybi-bloky', group: 'Šité stehy', name: 'Rybí kost s bloky', tech: 'herringbone', params: { pairs: 3, mode: 'blocks', band: 8 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Čokoláda', 'brown', 'cream', 'gold'], ['Bonbón', 'pink', 'aqua', 'yellow']] });
+addTech({ id: 'raw', group: 'Šité stehy', name: 'Pravoúhlé čtverečky', tech: 'raw', params: { rows: 2 }, labels: ['Podélné korálky', 'Příčné korálky', 'Středy'], ways: [['Perly a zlato', 'stonepearl', 'stonepearl', 'gold'], ['Dvoubarevné', 'turq', 'royal', 'yellow'], ['Černé a stříbrné', 'black', 'silver', 'silver']] });
+addTech({ id: 'petrohrad', group: 'Šité stehy', name: 'Petrohradský řetěz', tech: 'petersburg', labels: ['Střed', 'Lístky', 'Špičky'], ways: [['Větvička', 'emerald', 'green', 'amber'], ['Zlatý', 'gold', 'galvgold', 'cream'], ['Půlnoční', 'navy', 'silver', 'sky']] });
+
+addTech({ id: 'spirala', group: 'Provazy', name: 'Spirálový provaz', tech: 'spiral', labels: ['Jádro', 'Spirála', 'Akcenty'], ways: [['Moře', 'teal', 'turq', 'gold'], ['Západ slunce', 'berry', 'orange', 'yellow'], ['Černá a zlatá', 'black', 'black', 'gold']] });
+addTech({ id: 'provaz-spirala', group: 'Provazy', name: 'Háčkovaný provaz, spirála', tech: 'rope', params: { mode: 'spiral', colors: 3 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Lízátko', 'hot', 'white', 'turq'], ['Medová', 'amber', 'brown', 'cream']] });
+addTech({ id: 'provaz-pruhy', group: 'Provazy', name: 'Háčkovaný provaz, proužky', tech: 'rope', params: { mode: 'bands', colors: 3, band: 4 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Námořnický', 'navy', 'white', 'red'], ['Pastel', 'paleblue', 'blush', 'paleyellow']] });
+addTech({ id: 'provaz-melir', group: 'Provazy', name: 'Háčkovaný provaz, melír', tech: 'rope', params: { mode: 'mix', colors: 3, around: 8 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Tyrkysový', 'turq', 'aqua', 'white'], ['Fialový', 'purple', 'lilac', 'orchid']] });
+addTech({ id: 'strapaty', group: 'Provazy', name: 'Střapatý z kapek', tech: 'fringe', params: { colors: 3 }, labels: ['Kapky 1', 'Kapky 2', 'Kapky 3', 'Šňůrka'], ways: [['Mořská tráva', 'emerald', 'turq', 'lime', 'black'], ['Růžový', 'hot', 'pink', 'blush', 'white'], ['Sněhový', 'white', 'paleblue', 'silver', 'white']] });
+addTech({ id: 'strapaty-pruhy', group: 'Provazy', name: 'Střapatý s pruhy', tech: 'fringe', params: { colors: 3, mode: 'bands', band: 44 }, labels: ['Kapky 1', 'Kapky 2', 'Kapky 3', 'Šňůrka'], ways: [['Duhový', 'hot', 'yellow', 'turq', 'black'], ['Podzim', 'red', 'amber', 'brown', 'black']] });
+
+addTech({ id: 'kyticky', group: 'Kytičky a krajka', name: 'Kytičkový řetěz', tech: 'daisy', labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Kopretiny', 'white', 'amber', 'green'], ['Pomněnky', 'sky', 'yellow', 'white'], ['Sedmikrásky', 'blush', 'yellow', 'emerald']] });
+addTech({ id: 'kyticky-husto', group: 'Kytičky a krajka', name: 'Husté kytičky', tech: 'daisy', params: { links: 1 }, labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Levandule', 'lilac', 'white', 'purple'], ['Vlčí mák', 'red', 'black', 'emerald']] });
+addTech({ id: 'kyticky-dve', group: 'Kytičky a krajka', name: 'Louka ve dvou řadách', tech: 'daisy', params: { rows: 2, links: 3 }, labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Louka', 'hot', 'yellow', 'green'], ['Zimní', 'white', 'silver', 'paleblue']] });
+addTech({ id: 'sitka', group: 'Kytičky a krajka', name: 'Krajková síťka', tech: 'net', params: { rows: 3 }, labels: ['Síť', 'Uzly', 'Druhá řada'], ways: [['Tyrkys a zlato', 'turq', 'gold', 'turq'], ['Černá krajka', 'black', 'silver', 'black'], ['Perlová', 'white', 'stonepearl', 'white']] });
+addTech({ id: 'sitka-uzka', group: 'Kytičky a krajka', name: 'Úzká síťka', tech: 'net', params: { rows: 2, edge: 2, twoTone: true }, labels: ['Síť', 'Uzly', 'Druhá řada'], ways: [['Růže', 'raspberry', 'gold', 'blush'], ['Moře', 'royal', 'white', 'aqua']] });
+
+addTech({ id: 'makrame', group: 'Uzlíky a šňůrky', name: 'Makramé s kuličkami', tech: 'macrame', params: { balls: 5, knots: 3 }, labels: ['Kuličky', 'Šňůrka', 'Koncové korálky'], ways: [['Černá a zlatá', 'gold', 'black', 'gold'], ['Tyrkys a hnědá', 'turq', 'brown', 'turq'], ['Perly', 'stonepearl', 'navy', 'stonepearl']] });
+addTech({ id: 'makrame-velke', group: 'Uzlíky a šňůrky', name: 'Makramé s velkými kuličkami', tech: 'macrame', params: { balls: 3, knots: 5, big: true }, labels: ['Kuličky', 'Šňůrka', 'Koncové korálky'], ways: [['Hematit', 'hematite', 'black', 'hematite'], ['Měsíční kámen', 'moon', 'silver', 'moon'], ['Amazonit', 'amazonite', 'cream', 'amazonite']] });
+
+addTech({ id: 'mozaika', group: 'Zvláštní korálky', name: 'Mozaika z Tila', tech: 'tilagrid', params: { rows: 2 }, labels: ['Destičky A', 'Destičky B', 'Okraje'], ways: [['Šachovnice', 'black', 'white', 'silver'], ['Pastel', 'blush', 'paleblue', 'gold'], ['Moře', 'turq', 'cobalt', 'white']] });
+addTech({ id: 'mozaika-rada', group: 'Zvláštní korálky', name: 'Tila v jedné řadě', tech: 'tilagrid', params: { rows: 1 }, labels: ['Destičky A', 'Destičky B', 'Okraje'], ways: [['Zlato a krém', 'cream', 'gold', 'gold'], ['Bonbón', 'hot', 'aqua', 'white']] });
+addTech({ id: 'zebricek', group: 'Zvláštní korálky', name: 'Žebříček z tyčinek', tech: 'ladder', params: { colors: 3 }, labels: ['Tyčinky 1', 'Tyčinky 2', 'Tyčinky 3', 'Okraje'], ways: [['Stříbrný s modrou', 'silver', 'royal', 'sky', 'silver'], ['Zlatý', 'gold', 'black', 'cream', 'gold'], ['Západ slunce', 'orange', 'hot', 'yellow', 'berry']] });
+addTech({ id: 'zebricek-kratky', group: 'Zvláštní korálky', name: 'Úzký žebříček', tech: 'ladder', params: { colors: 2, short: true, seq: [0, 1] }, labels: ['Tyčinky 1', 'Tyčinky 2', 'Okraje'], ways: [['Černobílý', 'black', 'white', 'silver'], ['Lila', 'lilac', 'purple', 'gold']] });
+addTech({ id: 'tyckovy-cikcak', group: 'Zvláštní korálky', name: 'Cik-cak z tyčinek', tech: 'buglezig', labels: ['Tyčinky', 'Špičky'], ways: [['Kovový', 'silver', 'royal'], ['Korálový', 'coral', 'gold']] });
+addTech({ id: 'tyckove-kosoctverce', group: 'Zvláštní korálky', name: 'Kosočtverce z tyčinek', tech: 'buglezig', params: { double: true }, labels: ['Tyčinky', 'Špičky'], ways: [['Zlaté', 'gold', 'cream'], ['Tyrkysové', 'turq', 'gold'], ['Fialové', 'purple', 'silver']] });
+addTech({ id: 'pismenka', group: 'Zvláštní korálky', name: 'Kostky s písmeny', tech: 'letters', params: { text: 'LÁSKA' }, labels: ['Kostky', 'Písmena', 'Korálky', 'Akcenty'], ways: [['Klasické', 'white', 'black', 'turq', 'gold'], ['Růžové', 'blush', 'raspberry', 'pink', 'white'], ['Černé', 'black', 'white', 'silver', 'gold']] });
+
+const strandOf = (id, name, labels, strands, rows) => addTech({
+  id, group: 'Navlékané', name, tech: 'strand', labels, ways: rows,
+  params: { lengthMm: BAND_MM + 4, strands: strands.map((seq) => ({ seq })) },
+});
+strandOf('krystaly', 'Krystaly a perly', ['Krystaly', 'Perly', 'Rokajly'], [[[0, 1, 'bicone4'], [2, 3], [1, 1, 'round4'], [2, 3]]], [['Rubínové', 'red', 'stonepearl', 'gold'], ['Ametyst', 'purple', 'stonepearl', 'silver'], ['Zimní', 'silkblue', 'stonepearl', 'silver']]);
+strandOf('krychlicky', 'Krychličky', ['Krychličky A', 'Krychličky B', 'Mezery'], [[[0, 2, 'cube4'], [2, 2], [1, 2, 'cube4'], [2, 2]]], [['Moře', 'turq', 'royal', 'gold'], ['Bonbón', 'hot', 'yellow', 'white']]);
+strandOf('tycinky', 'Tyčinky a rokajly', ['Tyčinky', 'Rokajly', 'Akcenty'], [[[0, 1, 'bugle6'], [1, 2], [2, 1, 'round3'], [1, 2]], [[1, 3], [0, 1, 'bugle6'], [1, 3]]], [['Stříbro a modrá', 'silver', 'cobalt', 'gold'], ['Zlato a černá', 'gold', 'black', 'cream']]);
+strandOf('perly', 'Perly se zlatem', ['Perly', 'Mezery', 'Kuličky'], [[[0, 1, 'round6'], [1, 2], [2, 1, 'round3'], [1, 2]]], [['Krémové', 'stonepearl', 'gold', 'gold'], ['Měsíční', 'moon', 'silver', 'silver']]);
+strandOf('tri-duha', 'Tři prameny v duze', ['Pramen 1', 'Pramen 2', 'Pramen 3', 'Kuličky'], [[[0, 40], [3, 1, 'round3']], [[1, 30], [3, 1, 'round3']], [[2, 36], [3, 1, 'round3']]], [['Duha', 'hot', 'yellow', 'turq', 'gold'], ['Ledová', 'white', 'paleblue', 'silver', 'silver'], ['Lesní', 'emerald', 'olive', 'brown', 'gold']]);
 
 export const PATTERNS = list;
 export const patternById = (id) => list.find((p) => p.id === id);

@@ -37,22 +37,17 @@ const blendFragment = `
     gl_FragColor = uWeight >= 1.0 ? n : mix(texture2D(tOld, vUv), n, uWeight);
   }`;
 
-// Khronos PBR Neutral keeps bead colours honest, the whole point of this preview.
+// Linear up to a late shoulder, with each channel compressed on its own. Pale and saturated
+// colours then reach the catalogue value measured in tools/calibrate.html.
 const finalFragment = `
   uniform sampler2D tAccum; uniform float uExposure; uniform float uVignette; uniform float uTime; varying vec2 vUv;
   vec3 neutral(vec3 color){
-    const float StartCompression = 0.8 - 0.04; const float Desaturation = 0.15;
+    const float Start = 0.88;
     color *= uExposure;
     float x = min(color.r, min(color.g, color.b));
-    float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
-    color -= offset;
-    float peak = max(color.r, max(color.g, color.b));
-    if (peak < StartCompression) return color;
-    float d = 1. - StartCompression;
-    float newPeak = 1. - d * d / (peak + d - StartCompression);
-    color *= newPeak / peak;
-    float g = 1. - 1. / (Desaturation * (peak - newPeak) + 1.);
-    return mix(color, vec3(newPeak), g);
+    color -= x < 0.08 ? x - 6.25 * x * x : 0.04;
+    float d = 1. - Start;
+    return mix(color, 1. - d * d / (color + d - Start), step(Start, color));
   }
   vec3 toSRGB(vec3 c){ return mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(1.0/2.4)) - 0.055, step(0.0031308, c)); }
   float grain(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime) * 43758.5453); }
@@ -65,6 +60,25 @@ const finalFragment = `
     c += (grain(gl_FragCoord.xy) - 0.5) * 0.012;
     gl_FragColor = vec4(c, 1.0);
   }`;
+
+const letterCache = new Map();
+function letterTexture(char) {
+  if (letterCache.has(char)) return letterCache.get(char);
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 92px Figtree, Arial, sans-serif';
+  ctx.fillText(char, 64, 70);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  letterCache.set(char, t);
+  return t;
+}
 
 function detectQuality() {
   const touch = navigator.maxTouchPoints > 0;
@@ -218,11 +232,12 @@ export class Stage {
   // scene spec: { instances, poseKind, length, width, thread, metal, findings }
   setBracelet(spec) {
     this.spec = spec;
-    const pose = makePose(spec.poseKind ?? 'bow', spec.length, spec.width);
+    const pose = makePose(spec.poseKind ?? 'bow', spec.length, spec.width, spec.lift);
     this.pose = pose;
     this._buildBeads(spec, pose);
     this._buildBed(spec, pose);
     this._buildFindings(spec, pose);
+    this._buildDecals(spec, pose);
     this._fitLights(spec, pose);
     this.restart();
   }
@@ -326,6 +341,29 @@ export class Stage {
     this.bed.castShadow = true;
     this.bed.receiveShadow = true;
     this.scene.add(this.bed);
+  }
+
+  // Printed marks, like letters on cube beads. A few flat planes just above the bead.
+  _buildDecals(spec, pose) {
+    if (!this.decals) {
+      this.decals = new THREE.Group();
+      this.decalGeo = new THREE.PlaneGeometry(1, 1);
+      this.scene.add(this.decals);
+    }
+    for (const mesh of this.decals.children) mesh.material.dispose();
+    this.decals.clear();
+    for (const d of spec.decals ?? []) {
+      const f = pose.at(d.s);
+      const mesh = new THREE.Mesh(this.decalGeo, new THREE.MeshStandardMaterial({
+        map: letterTexture(d.char), color: new THREE.Color(`#${d.hex}`), transparent: true, depthWrite: false, roughness: 0.42, metalness: 0,
+        polygonOffset: true, polygonOffsetFactor: -2,
+      }));
+      mesh.position.set(f.px + f.bx * d.t + f.nx * d.h, f.py + f.by * d.t + f.ny * d.h, f.pz + f.bz * d.t + f.nz * d.h);
+      // Reads upright for someone looking at the bracelet from the front.
+      mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(f.tx, -f.bx, f.nx, 0, f.ty, -f.by, f.ny, 0, f.tz, -f.bz, f.nz, 0, 0, 0, 0, 1));
+      mesh.scale.setScalar(d.size);
+      this.decals.add(mesh);
+    }
   }
 
   _buildFindings(spec, pose) {

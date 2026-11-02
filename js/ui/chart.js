@@ -2,6 +2,7 @@
 // by half a bead just like the real peyote weave, so what is drawn is what is sewn.
 import { NONE, grid, ensureCells, floodFill, mirrorCell, beadDims } from '../techniques/peyote.js';
 import { MOTIFS, parseMotif, placeMotif } from '../core/motifs.js';
+import { PIXELS, placePixels, pixelSize } from '../core/pixels.js';
 import { store } from './store.js';
 import { el, icon, flatColor, toast } from './util.js';
 
@@ -11,6 +12,7 @@ const PAD_TOP = 22;
 export function drawChart(canvas, design, part, { cell, hover = [], ghostSlot = null, labels = true } = {}) {
   const { w, n, cells } = grid(part);
   const { D, L } = beadDims(part);
+  const shiftOf = (r) => (r % 2 && !part.params.loom ? cell / 2 : 0);
   const cw = cell;
   const ch = cell * (L / D);
   const pad = labels ? { x: PAD_LEFT, y: PAD_TOP } : { x: 2, y: 2 };
@@ -30,7 +32,7 @@ export function drawChart(canvas, design, part, { cell, hover = [], ghostSlot = 
   const line = cell >= 9 ? 'rgb(30 20 30 / .3)' : 'rgb(30 20 30 / .14)';
   for (let r = 0; r < w; r++) {
     const y = pad.y + r * ch;
-    const shift = r % 2 ? cw / 2 : 0;
+    const shift = shiftOf(r);
     for (let c = 0; c < n; c++) {
       const slot = cells[r * n + c];
       if (slot === NONE) continue;
@@ -55,7 +57,7 @@ export function drawChart(canvas, design, part, { cell, hover = [], ghostSlot = 
   }
   // Hover and stamp preview.
   for (const { r, c } of hover) {
-    const x = pad.x + c * cw + (r % 2 ? cw / 2 : 0);
+    const x = pad.x + c * cw + shiftOf(r);
     const y = pad.y + r * ch;
     if (ghostSlot !== null) {
       ctx.fillStyle = colors[ghostSlot] ?? '#000';
@@ -80,9 +82,10 @@ const TOOLS = [
 ];
 
 export class ChartEditor {
-  constructor(container, part, { onChange } = {}) {
+  constructor(container, part, { onChange, getSlot } = {}) {
     this.part = part;
     this.onChange = onChange;
+    this.getSlot = getSlot ?? (() => store.selected);
     this.tool = navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 820 ? 'hand' : 'brush';
     this.mirrorX = false;
     this.mirrorY = false;
@@ -134,7 +137,7 @@ export class ChartEditor {
       this.tool === 'stamp' ? el('select', {
         class: 'tool', 'aria-label': 'Motiv razítka',
         onchange: (e) => { this.motif = e.target.value; },
-      }, Object.entries(MOTIFS).map(([id, m]) => el('option', { value: id, selected: id === this.motif }, m.label))) : null,
+      }, Object.entries(this.part.params.loom ? PIXELS : MOTIFS).map(([id, m]) => el('option', { value: id, selected: id === this.motif }, m.label))) : null,
       el('span', { class: 'sep' }),
       el('button', {
         class: `tool${this.mirrorX ? ' on' : ''}`, title: 'Zrcadlit zleva doprava', 'aria-pressed': String(this.mirrorX),
@@ -194,24 +197,29 @@ export class ChartEditor {
     const y = e.clientY - rect.top - pad.y;
     const r = Math.floor(y / ch);
     if (r < 0 || r >= w) return null;
-    const c = Math.floor((x - (r % 2 ? cw / 2 : 0)) / cw);
+    const c = Math.floor((x - (r % 2 && !this.part.params.loom ? cw / 2 : 0)) / cw);
     if (c < 0 || c >= n) return null;
     return { r, c };
   }
 
   _stampCells(at) {
-    const m = parseMotif(this.motif);
+    if (this.part.params.loom) {
+      const id = PIXELS[this.motif] ? this.motif : 'heart';
+      const { rows, cols } = pixelSize(id);
+      return placePixels(id, at.c - Math.floor(cols / 2), at.r - Math.floor(rows / 2), this.part.params.w, this.part.params.n);
+    }
+    const m = parseMotif(MOTIFS[this.motif] ? this.motif : 'heartS');
     const X = 2 * at.c + (at.r % 2);
     const top = at.r - Math.floor(m.rows / 2);
-    return placeMotif(this.motif, X, top, this.part.params.w, this.part.params.n);
+    return placeMotif(MOTIFS[this.motif] ? this.motif : 'heartS', X, top, this.part.params.w, this.part.params.n);
   }
 
   _paint(at) {
     const { w, n } = this.part.params;
     const cells = ensureCells(this.part);
-    const value = this.tool === 'erase' ? 0 : store.selected;
+    const value = this.tool === 'erase' ? 0 : this.getSlot();
     let changed = false;
-    for (const [r, c] of mirrorCell(at.r, at.c, w, n, this.mirrorX, this.mirrorY)) {
+    for (const [r, c] of mirrorCell(at.r, at.c, w, n, this.mirrorX, this.mirrorY, this.part.params.loom)) {
       if (cells[r * n + c] !== NONE && cells[r * n + c] !== value) {
         cells[r * n + c] = value;
         changed = true;
@@ -236,6 +244,7 @@ export class ChartEditor {
       const slot = grid(this.part).cells[at.r * n + at.c];
       if (slot !== NONE) {
         store.selected = slot;
+        store.allInGroup = false;
         store.notify('meta');
         this.setTool('brush');
         toast(`Vybráno: ${store.design.slots[slot].label}`);
@@ -246,14 +255,15 @@ export class ChartEditor {
     if (this.tool === 'fill') {
       const cells = ensureCells(this.part);
       if (cells[at.r * n + at.c] !== NONE) {
-        floodFill(cells, w, n, at.r, at.c, store.selected);
+        floodFill(cells, w, n, at.r, at.c, this.getSlot(), this.part.params.loom);
         this.onChange?.();
       }
       return;
     }
     if (this.tool === 'stamp') {
       const cells = ensureCells(this.part);
-      for (const { r, c } of this._stampCells(at)) cells[r * n + c] = store.selected;
+      const slot = this.getSlot();
+      for (const { r, c } of this._stampCells(at)) cells[r * n + c] = slot;
       this.onChange?.();
       return;
     }

@@ -17,10 +17,10 @@ function materialTable(design) {
       el('small', {}, `${displayCode(l.code) ? `${czName(l.code)} · ` : ''}${l.material}`),
     ))),
     el('td', { class: 'hint' }, l.labels.join(', ')),
-    el('td', { class: 'num' }, czNumber(l.count, 0)),
-    el('td', { class: 'num' }, `${czNumber(Math.max(l.grams, 0.1), 1)} g`),
+    el('td', { class: 'num' }, l.noCount ? 'podle délky' : czNumber(l.count, 0)),
+    el('td', { class: 'num' }, l.noCount ? '' : `${czNumber(Math.max(l.grams, 0.1), 1)} g`),
   ));
-  const total = lines.reduce((sum, l) => sum + l.count, 0);
+  const total = lines.reduce((sum, l) => sum + (l.noCount ? 0 : l.count), 0);
   return el('table', { class: 'mat-table' },
     el('thead', {}, el('tr', {}, el('th', {}, 'Korálek'), el('th', {}, 'Kde'), el('th', { class: 'num' }, 'Kusů'), el('th', { class: 'num' }, 'Váha'))),
     el('tbody', {}, rows, el('tr', {}, el('td', { colspan: 2 }, el('b', {}, 'Celkem')), el('td', { class: 'num' }, el('b', {}, czNumber(total, 0))), el('td', { class: 'num' }, ''))),
@@ -67,8 +67,8 @@ function strandGuide(design, part) {
   return [el('h3', {}, 'Pořadí navlékání'), items, el('p', { class: 'hint' }, 'Sekvenci opakuj, dokud nemáš požadovanou délku.')];
 }
 
-function tilaGuide(part) {
-  return [el('h3', {}, 'Postup'), el('ol', { class: 'steps' }, TECHNIQUES.tila.mod.steps(part).map((s) => el('li', {}, s)))];
+function stepsGuide(part) {
+  return [el('h3', {}, 'Postup'), el('ol', { class: 'steps' }, TECHNIQUES[part.tech].mod.steps(part).map((s) => el('li', {}, s)))];
 }
 
 // Returns a function that redraws the charts, for when the theme changes.
@@ -77,7 +77,7 @@ export function renderGuide(container, design, { onPrint } = {}) {
   const parts = design.parts.flatMap((part) => {
     if (part.tech === 'peyote') return peyoteGuide(design, part, draws);
     if (part.tech === 'strand') return strandGuide(design, part);
-    return tilaGuide(part);
+    return stepsGuide(part);
   });
   const hasDelica15 = design.parts.some((p) => p.tech === 'peyote' && (p.params.size ?? DEFAULT_SIZE) === 15);
   const hasEstimate = design.parts.some((p) => p.tech !== 'peyote');

@@ -12,6 +12,7 @@ globalThis.location = { origin: 'https://example.test', pathname: '/Naramky/' };
 const { store, saveCurrent, savedList, deleteSaved, duplicateSaved, shareLink, restoreSession } = await import('../js/ui/store.js');
 const { patternById } = await import('../js/core/presets.js');
 const { decodeDesign, encodeDesign, applyColorway } = await import('../js/core/design.js');
+const { decodeShare } = await import('../js/core/link.js');
 
 const hearts = () => patternById('srdce').make();
 
@@ -139,7 +140,7 @@ test('a share link holds the design but no private save data', () => {
   saveCurrent();
   const link = shareLink(store.design);
   assert.ok(link.startsWith('https://example.test/Naramky/#/n/'));
-  const back = decodeDesign(link.split('#/n/')[1]);
+  const back = decodeShare(link.split('#/n/')[1]);
   assert.equal(back.name, store.design.name);
   assert.equal(back.savedId, undefined);
 });

@@ -1,5 +1,5 @@
 import { store, restoreSession } from './ui/store.js';
-import { decodeDesign } from './core/design.js';
+import { decodeShare } from './core/link.js';
 import { toast } from './ui/util.js';
 import { renderGallery, renderMine } from './ui/gallery.js';
 import { Designer } from './ui/designer.js';
@@ -29,7 +29,7 @@ function route() {
   const hash = location.hash || '#/';
   if (hash.startsWith('#/n/')) {
     try {
-      const design = decodeDesign(hash.slice(4));
+      const design = decodeShare(hash.slice(4));
       const kept = store.open(design);
       toast(kept ? `Otevřený návrh: ${design.name}. Ten tvůj je v Moje návrhy jako „${kept}“.` : `Otevřený návrh: ${design.name}`, kept ? 5000 : undefined);
     } catch (err) {

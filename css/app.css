@@ -131,12 +131,13 @@ a { color: inherit; }
 
 .slot .mini { display: inline-flex; flex: none; }
 .slot .mini .bead + .bead { margin-left: -14px; }
-.slot.add { border-style: dashed; color: var(--muted); padding-left: 10px; gap: 6px; }
 .members { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding: 8px; background: var(--soft); border-radius: 12px; }
 .member { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 4px 11px 4px 6px; border: 1.5px solid transparent; background: var(--surface); border-radius: 10px; font-size: 13.5px; font-weight: 550; box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
 .member:first-child { padding-left: 11px; }
 .member .bead { width: 20px; height: 18px; border-radius: 5px; }
 .member.on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.member-remove { display: inline-grid; place-items: center; width: 30px; min-height: 38px; margin-left: -4px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: var(--muted); }
+.member-remove:hover { background: var(--hover); color: var(--ink); }
 
 /* Ready-made colour combinations of the same shape */
 .ways summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; cursor: pointer; list-style-position: inside; }
@@ -151,8 +152,8 @@ a { color: inherit; }
 /* A swatch drawn like a real Delica bead seen from the side */
 .bead { --c: #888; display: inline-block; flex: none; width: 26px; height: 24px; border-radius: 7px; background:
   radial-gradient(38% 26% at 30% 22%, rgb(255 255 255 / .95), transparent 72%),
-  linear-gradient(90deg, rgb(0 0 0 / .42), transparent 26%, rgb(255 255 255 / .2) 44%, transparent 62%, rgb(0 0 0 / .44)),
-  linear-gradient(180deg, rgb(255 255 255 / .2), transparent 32%, rgb(0 0 0 / .24)),
+  linear-gradient(90deg, rgb(0 0 0 / .22), transparent 22%, rgb(255 255 255 / .12) 44%, transparent 66%, rgb(0 0 0 / .24)),
+  linear-gradient(180deg, rgb(255 255 255 / .14), transparent 32%, rgb(0 0 0 / .12)),
   var(--c);
   box-shadow: 0 1px 2px rgb(0 0 0 / .35); }
 .bead.metal { background:

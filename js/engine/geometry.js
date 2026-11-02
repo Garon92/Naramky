@@ -158,6 +158,53 @@ function roundBead(D, variant, quality) {
   return g;
 }
 
+// Long tube bead with the hole along X.
+function bugle(D, L, variant, quality) {
+  const R = D / 2;
+  const profile = cylinderProfile(R, L / 2, R * 0.5, R * 0.16, quality === 'low' ? 2 : 3, quality === 'low' ? 2 : 5);
+  const g = latheAroundZ(profile, quality === 'low' ? 10 : 18, variant + 1, 0.01);
+  g.rotateY(Math.PI / 2);
+  return g;
+}
+
+// Teardrop whose neck sits at the origin and whose round end points along +Y.
+function dropBead(D, L, variant, quality) {
+  const R = D / 2;
+  const steps = quality === 'low' ? 9 : 16;
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps;
+    const r = R * (0.34 + 0.66 * Math.sin(Math.PI * Math.pow(u, 1.7) * 0.5 + 0.02)) * Math.sqrt(Math.max(0, 1 - Math.pow(u, 7)));
+    pts.push({ r: Math.max(r, 0.01), h: u * L, ao: 0.45 + 0.55 * u });
+  }
+  const g = latheAroundZ(pts, quality === 'low' ? 10 : 18, variant + 1, 0.015);
+  g.rotateX(-Math.PI / 2);
+  return g;
+}
+
+// Faceted crystal: two cones with flat faces that catch the light one by one.
+function bicone(D, L, variant) {
+  const R = D / 2;
+  const pts = [{ r: R * 0.22, h: -L / 2, ao: 1 }, { r: R, h: 0, ao: 1 }, { r: R * 0.22, h: L / 2, ao: 1 }];
+  const g = latheAroundZ(pts, 8, variant + 1, 0).toNonIndexed();
+  g.computeVertexNormals();
+  g.rotateY(Math.PI / 2 + variant * 0.2);
+  return g;
+}
+
+function cordSegment(D, L, quality) {
+  const g = new THREE.CylinderGeometry(D / 2, D / 2, L, quality === 'low' ? 7 : 12, 1, true);
+  g.rotateZ(Math.PI / 2);
+  return withFlatAO(g);
+}
+
+// One wrap of a knot: a soft bar lying across the band.
+function cordLoop(D, L, quality) {
+  const g = new THREE.CapsuleGeometry(D / 2, L - D, quality === 'low' ? 3 : 5, quality === 'low' ? 8 : 12);
+  g.rotateX(Math.PI / 2);
+  return withFlatAO(g);
+}
+
 // Half Tila and similar flat two-hole tiles. Long axis along X.
 function tile(w, h, d, quality) {
   const g = new RoundedBoxGeometry(w, h, d, quality === 'low' ? 2 : 4, Math.min(h, d) * 0.2);
@@ -179,6 +226,12 @@ export function beadGeometry(shape, variant, quality) {
   if (def.kind === 'delica') g = delica(def.size[0], def.size[1], variant, quality);
   else if (def.kind === 'rocaille') g = rocaille(def.size[0], def.size[1], variant, quality);
   else if (def.kind === 'round') g = roundBead(def.size[0], variant, quality);
+  else if (def.kind === 'bugle') g = bugle(def.size[0], def.size[1], variant, quality);
+  else if (def.kind === 'drop') g = dropBead(def.size[0], def.size[1], variant, quality);
+  else if (def.kind === 'bicone') g = bicone(def.size[0], def.size[1], variant);
+  else if (def.kind === 'cordseg') g = cordSegment(def.size[0], def.size[1], quality);
+  else if (def.kind === 'cordloop') g = cordLoop(def.size[0], def.size[1], quality);
+  else if (def.kind === 'cube') g = tile(def.size[0], def.size[0], def.size[0], quality);
   else g = tile(def.size[0], def.size[2], def.size[1], quality);
   cache.set(key, g);
   return g;

@@ -35,10 +35,11 @@ export function icon(name, cls = 'icon') {
   return svg;
 }
 
-// Display colour for flat swatches. Catalogue hex is a photo mean, so a touch dark.
+// Display colour for flat swatches. Metal looks too dark as a flat photo mean.
 export function flatColor(code) {
   const b = bead(code);
-  const lift = b.finish === 'metal' || b.finish === 'metalMatte' ? 1.35 : 1.12;
+  if (b.finish !== 'metal' && b.finish !== 'metalMatte') return `#${b.hex}`;
+  const lift = 1.35;
   const n = parseInt(b.hex, 16);
   const ch = (v) => Math.min(255, Math.round(v * lift)).toString(16).padStart(2, '0');
   return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;

@@ -1,6 +1,7 @@
 // Physically based bead materials. One material per finish; per-bead colour comes
 // from instanceColor. The AO patch darkens image based light where beads touch.
 import * as THREE from 'three';
+import { CALIBRATION } from './calibration.js';
 
 const FINISHES = {
   opaque: { roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.018, ior: 1.52, specularIntensity: 0.55 },
@@ -22,12 +23,14 @@ const FINISHES = {
   silk: { roughness: 0.36, clearcoat: 0.85, clearcoatRoughness: 0.09, sheen: 0.35, sheenRoughness: 0.5 },
   alabaster: { roughness: 0.38, clearcoat: 0.7, clearcoatRoughness: 0.12, sheen: 0.55, sheenRoughness: 0.45 },
   steel: { metalness: 1, roughness: 0.24 },
+  cord: { roughness: 0.88, sheen: 0.6, sheenRoughness: 0.7 },
+  crystal: { metalness: 0.3, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.012, ior: 1.75, iridescence: 0.3, iridescenceIOR: 1.7, iridescenceThicknessMinimum: 180, iridescenceThicknessMaximum: 420 },
 };
 
 const cache = new Map();
 
 // Shared with the render loop so accumulation can rebalance dome light.
-export const lightingUniforms = { uIBLDiffuse: { value: 0.4 } };
+export const lightingUniforms = { uIBLDiffuse: { value: 1.05 } };
 
 function patchAO(material) {
   material.onBeforeCompile = (shader) => {
@@ -88,20 +91,27 @@ export function threadMaterial(color = 0x2a2523) {
   return m;
 }
 
-// The hex in the directory is a photo mean, shadows included, so the true glass
-// colour is lighter than that average. Boost in linear light, per finish.
-const BOOST = {
-  opaque: 1.32, matte: 1.24, luster: 1.26, ab: 1.22, metal: 2.1, metalMatte: 1.9,
-  lined: 1.5, colorLined: 1.34, trans: 1.5, silk: 1.28, alabaster: 1.26,
-};
+// Calibration. The catalogue hex is the mean colour of the maker's photo of a pile of
+// beads, so a bead must be painted whatever colour makes our rendered bead surface average
+// to that same hex. Each finish has a measured curve: paint value to rendered value, both
+// in linear light. tools/calibrate.html measures the curves in calibration.js.
+export { CALIBRATION };
+
+function invertCurve(curve, y) {
+  const { x: xs, y: ys } = curve;
+  if (y <= ys[0]) return xs[0] * (ys[0] > 0 ? y / ys[0] : 0);
+  for (let i = 1; i < ys.length; i++) {
+    if (y <= ys[i]) return xs[i - 1] + ((xs[i] - xs[i - 1]) * (y - ys[i - 1])) / (ys[i] - ys[i - 1] || 1);
+  }
+  return xs[xs.length - 1];
+}
 
 export function albedoFromHex(hex, finish, out = new THREE.Color()) {
   out.set(`#${hex.replace('#', '')}`); // ColorManagement converts sRGB to linear
-  const b = BOOST[finish] ?? 1.3;
-  const gray = (out.r + out.g + out.b) / 3;
-  const sat = finish === 'metal' || finish === 'metalMatte' ? 1 : 1.22;
-  out.r = Math.min(1, Math.max(0, gray + (out.r - gray) * sat) * b);
-  out.g = Math.min(1, Math.max(0, gray + (out.g - gray) * sat) * b);
-  out.b = Math.min(1, Math.max(0, gray + (out.b - gray) * sat) * b);
+  const curve = CALIBRATION[finish];
+  if (!curve) return out;
+  out.r = invertCurve(curve, out.r);
+  out.g = invertCurve(curve, out.g);
+  out.b = invertCurve(curve, out.b);
   return out;
 }

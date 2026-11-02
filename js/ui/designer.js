@@ -1,12 +1,12 @@
 // The designer page. Simple first: tap a heart, pick a colour, send the link.
 // Bead-by-bead painting, pattern settings and the sewing guide live underneath.
-import { store, saveCurrent, shareLink } from './store.js';
+import { store, saveCurrent, shareLink, NO_LINK } from './store.js';
 import { PhotoHost, VIEWS } from './photo.js';
 import { ChartEditor } from './chart.js';
 import { renderGuide } from './guide.js';
 import { el, icon, beadSwatch, flatColor, colorTitle, displayCode, toast, copyText, saveFile, czNumber, plural } from './util.js';
 import { PALETTE, FAMILIES, allBeads, extraBeads, czName, finishLabel, bead, codeOf } from '../core/catalog.js';
-import { TECHNIQUES, paintablePart, applyWrist, applyMotifSettings, groupsOf, groupOfSlot, setGroupColor, applyColorway, setBeadSlot, addExtraColor } from '../core/design.js';
+import { TECHNIQUES, paintablePart, applyWrist, applyMotifSettings, groupsOf, groupOfSlot, setGroupColor, applyColorway, setBeadSlot, extraSlotFor, pruneExtras, resetBead, removeExtraColor, EXTRA_GROUP } from '../core/design.js';
 import { patternById } from '../core/presets.js';
 import { bandSize, BEAD_SIZES, DEFAULT_SIZE } from '../techniques/peyote.js';
 import { SHAPES } from '../core/shapes.js';
@@ -19,7 +19,7 @@ const METALS = [
 const MOTIF_OPTIONS = [
   ['heartS', 'Srdce malé'], ['heartN', 'Srdce'], ['heartM', 'Srdce větší'], ['heartL', 'Srdce velké'], ['star', 'Hvězda'], ['flower', 'Květina'], ['clover', 'Čtyřlístek'], ['diamond', 'Kosočtverec'],
 ];
-const STRAND_SHAPES = ['rocaille15', 'rocaille11', 'rocaille8', 'delica11', 'round3', 'round4', 'halftila'];
+const STRAND_SHAPES = ['rocaille15', 'rocaille11', 'rocaille8', 'delica11', 'round3', 'round4', 'round6', 'cube3', 'cube4', 'bugle3', 'bugle6', 'bicone4', 'halftila'];
 // Bright, friendly colours for the "surprise me" button.
 const SURPRISE = ['royal', 'cobalt', 'sky', 'turq', 'aqua', 'green', 'lime', 'yellow', 'amber', 'orange', 'pink', 'hot', 'raspberry', 'purple', 'lilac', 'white'];
 
@@ -62,6 +62,7 @@ export class Designer {
     this.slotsBox = el('div', { class: 'slots', role: 'radiogroup', 'aria-label': 'Co barvím' });
     this.memberBox = el('div', { class: 'members', role: 'radiogroup', 'aria-label': 'Všechny najednou nebo každý zvlášť' });
     this.waysBox = el('div');
+    this.hintEl = el('p', { class: 'hint', style: { margin: '8px 0 10px' } });
     this.paletteBox = el('div', { class: 'palette' });
     this.tip = el('div', { class: 'swatch-tip' });
     this.catalogBox = el('div');
@@ -72,7 +73,7 @@ export class Designer {
         el('div', { class: 'section-title' }, el('h2', {}, 'Barvy'), el('button', { class: 'btn small ghost', title: 'Náhodné barvy', onclick: () => this._surprise() }, icon('dice'), 'Překvap mě')),
         this.slotsBox,
         this.memberBox,
-        el('p', { class: 'hint', style: { margin: '8px 0 10px' } }, 'Klepni na část náramku nebo přímo na fotku a vyber barvu.'),
+        this.hintEl,
         this.paletteBox,
         this.tip,
         this.catalogBox,
@@ -138,10 +139,9 @@ export class Designer {
     }, v.label)));
     this.tapBar.replaceChildren(...[['select', 'Vybírat'], ['paint', 'Přebarvit kus']].map(([id, label]) => el('button', {
       class: this.tapMode === id ? 'on' : '', 'aria-pressed': String(this.tapMode === id),
-      title: id === 'select' ? 'Klepnutí na fotku vybere, co barvíš' : 'Klepnutí na fotku přebarví jeden korálek vybranou barvou',
+      title: id === 'select' ? 'Klepnutí na fotku vybere, co barvíš' : 'Vybereš barvu a klepnutím přebarvíš jednotlivé korálky',
       onclick: () => {
-        this.tapMode = id;
-        this._renderBars();
+        this._setTapMode(id);
       },
     }, label)));
     this.surfaceBar.replaceChildren(...SURFACE_LIST.map((s) => el('button', {
@@ -183,7 +183,6 @@ export class Designer {
           onclick: () => this._selectGroup(g),
         }, el('span', { class: 'mini' }, codes.slice(0, 4).map((code) => beadSwatch(code))), el('span', {}, g.name, el('small', {}, detail)));
       }),
-      el('button', { class: 'slot add', title: 'Přidá další barvu, kterou můžeš kreslit nebo přebarvovat jednotlivé kusy', onclick: () => this._addColor() }, icon('plus'), 'Další barva'),
     );
     if (current.slots.length > 1) {
       this.memberBox.replaceChildren(
@@ -191,18 +190,29 @@ export class Designer {
           class: `member${store.allInGroup ? ' on' : ''}`, role: 'radio', 'aria-checked': String(store.allInGroup),
           onclick: () => this._selectGroup(current),
         }, 'Všechny najednou'),
-        ...current.slots.map((i) => {
+        ...current.slots.flatMap((i) => {
           const on = !store.allInGroup && i === store.selected;
-          return el('button', {
+          const chip = el('button', {
             class: `member${on ? ' on' : ''}`, role: 'radio', 'aria-checked': String(on),
             onclick: () => this._selectSlot(i),
           }, beadSwatch(d.slots[i].code), d.slots[i].label);
+          if (current.name !== EXTRA_GROUP) return [chip];
+          return [chip, this._removeExtraButton(i)];
         }),
+      );
+    } else if (current.name === EXTRA_GROUP) {
+      const i = current.slots[0];
+      this.memberBox.replaceChildren(
+        el('span', { class: 'member' }, beadSwatch(d.slots[i].code), d.slots[i].label),
+        this._removeExtraButton(i),
       );
     } else {
       this.memberBox.replaceChildren();
     }
-    const key = `${store.selected}:${store.allInGroup}`;
+    this.hintEl.textContent = this.tapMode === 'paint'
+      ? 'Vyber barvu a klepej na korálky na fotce. Když stejnou barvou klepneš znovu, korálek se vrátí zpět.'
+      : 'Klepni na část náramku nebo přímo na fotku a vyber barvu.';
+    const key = `${store.selected}:${store.allInGroup}:${this.tapMode}`;
     if (this.lastSelected !== key) {
       this.lastSelected = key;
       this._renderLabelField();
@@ -213,43 +223,75 @@ export class Designer {
   _selectGroup(g) {
     store.selected = g.slots[0];
     store.allInGroup = g.slots.length > 1;
+    this._leavePaintMode();
     store.notify('meta');
   }
 
   _selectSlot(i) {
     store.selected = i;
     store.allInGroup = false;
+    this._leavePaintMode();
     store.notify('meta');
   }
 
-  _addColor() {
-    const d = store.design;
-    store.snapshot();
-    const used = new Set(d.slots.map((x) => x.code));
-    const fresh = PALETTE.find((p) => SURPRISE.includes(p.key) && !used.has(p.code))?.code ?? PALETTE[0].code;
-    store.selected = addExtraColor(d, fresh);
-    store.allInGroup = false;
-    store.notify('color');
-    toast('Vyber barvu a klepni na korálky na fotce nebo ve schématu.');
-    this.tapMode = 'paint';
+  _leavePaintMode() {
+    if (this.tapMode === 'select') return;
+    this.tapMode = 'select';
     this._renderBars();
   }
 
+  _setTapMode(id) {
+    this.tapMode = id;
+    if (id === 'paint') this.paintCode = store.design.slots[store.selected]?.code;
+    this._renderBars();
+    store.notify('meta');
+  }
+
+  _removeExtraButton(slot) {
+    return el('button', {
+      class: 'member-remove', title: 'Smaže barvu a vrátí tyhle korálky do původního stavu', 'aria-label': 'Vrátit přebarvené korálky',
+      onclick: () => {
+        store.snapshot();
+        removeExtraColor(store.design, slot);
+        this._afterExtrasChanged();
+      },
+    }, icon('x'));
+  }
+
+  // Colours of single beads come and go by themselves, so selection may need to move.
+  _afterExtrasChanged() {
+    const d = store.design;
+    if (store.selected >= d.slots.length) {
+      store.selected = groupsOf(d).find((g) => g.slots.length > 1)?.slots[0] ?? 0;
+      store.allInGroup = false;
+    }
+    store.notify('structure');
+    this._showTip();
+  }
+
+  _paintSlot() {
+    return this.tapMode === 'paint' ? extraSlotFor(store.design, this.paintCode) : store.selected;
+  }
+
   _onTapBead(b) {
-    if (this.tapMode === 'paint') {
-      if (b.slot === store.selected) return;
-      store.snapshot();
-      setBeadSlot(store.design, b, store.selected);
-      store.notify('structure');
+    if (this.tapMode !== 'paint') {
+      this._selectSlot(b.slot);
       return;
     }
-    this._selectSlot(b.slot);
+    const d = store.design;
+    store.snapshot();
+    const current = d.slots[b.slot];
+    if (current?.group === EXTRA_GROUP && current.code === this.paintCode) resetBead(d, b);
+    else setBeadSlot(d, b, extraSlotFor(d, this.paintCode));
+    pruneExtras(d);
+    d.colorway = null;
+    this._afterExtrasChanged();
   }
 
   // Name a part, say a child's name for each heart. It shows in the guide and the message.
   _renderLabelField() {
     const slot = store.design.slots[store.selected];
-    if (!slot || store.allInGroup) {
+    if (!slot || store.allInGroup || this.tapMode === 'paint' || slot.group === EXTRA_GROUP) {
       this.labelBox.replaceChildren();
       return;
     }
@@ -265,6 +307,10 @@ export class Designer {
 
   _showTip() {
     const d = store.design;
+    if (this.tapMode === 'paint') {
+      this.tip.replaceChildren(el('b', {}, 'Přebarvuješ barvou'), `: ${colorTitle(this.paintCode)}`);
+      return;
+    }
     const slot = d.slots[store.selected];
     if (!slot) return;
     const g = groupOfSlot(d, store.selected);
@@ -280,6 +326,12 @@ export class Designer {
   }
 
   _setColor(code) {
+    if (this.tapMode === 'paint') {
+      this.paintCode = code;
+      this._renderPalette();
+      this._showTip();
+      return;
+    }
     const d = store.design;
     const g = groupOfSlot(d, store.selected);
     const targets = store.allInGroup ? g.slots : [store.selected];
@@ -326,7 +378,7 @@ export class Designer {
   _renderPalette() {
     const g = groupOfSlot(store.design, store.selected);
     const mixed = store.allInGroup && new Set(g.slots.map((i) => store.design.slots[i].code)).size > 1;
-    const current = mixed ? null : store.design.slots[store.selected]?.code;
+    const current = this.tapMode === 'paint' ? this.paintCode : mixed ? null : store.design.slots[store.selected]?.code;
     const swatch = (code) => el('button', {
       class: `swatch${code === current ? ' on' : ''}`, title: colorTitle(code), 'aria-label': colorTitle(code),
       onclick: () => this._setColor(code),
@@ -418,9 +470,11 @@ export class Designer {
     const d = store.design;
     const part = paintablePart(d);
     const hasStrands = d.parts.some((p) => p.tech === 'strand');
+    const hasSettings = d.parts.some((p) => TECHNIQUES[p.tech].mod.settings);
     const tabs = [];
     if (part) tabs.push(['chart', 'Schéma a kreslení']);
     else if (hasStrands) tabs.push(['chart', 'Pořadí korálků']);
+    else if (hasSettings) tabs.push(['chart', 'Nastavení vzoru']);
     tabs.push(['guide', 'Návod a materiál']);
     if (!tabs.find(([id]) => id === this.tab)) this.tab = tabs[0][0];
     this.subtabs.replaceChildren(...tabs.map(([id, label]) => el('button', {
@@ -436,6 +490,7 @@ export class Designer {
     if (this.tab === 'chart') {
       if (part) this._renderChartTab(part, kind);
       else if (hasStrands) this._renderStrandTab();
+      else if (hasSettings) this._renderTechniqueSettings();
       else this.tabChart.replaceChildren();
     }
     if (this.tab === 'guide') this.redrawGuide = renderGuide(this.tabGuide, d, { onPrint: () => this._print() });
@@ -446,6 +501,7 @@ export class Designer {
       this.chart?.destroy();
       this.tabChart.replaceChildren();
       this.chart = new ChartEditor(this.tabChart, part, {
+        getSlot: () => this._paintSlot(),
         onChange: () => {
           this.chart.draw();
           this._onPaint();
@@ -462,6 +518,8 @@ export class Designer {
   _onPaint() {
     clearTimeout(this.paintTimer);
     this.paintTimer = setTimeout(() => {
+      pruneExtras(store.design);
+      store.selected = Math.min(store.selected, store.design.slots.length - 1);
       this.photo.show(store.design);
       store.notify('meta');
     }, 70);
@@ -521,6 +579,38 @@ export class Designer {
         `Délka ${p.n} korálků se počítá ze zápěstí ${czNumber(d.wrist)} cm. `,
         manual ? 'Změna nastavení vzor přepočítá znovu a ruční kreslení přepíše. Vrátit se dá tlačítkem Zpět.' : null),
     );
+  }
+
+  _renderTechniqueSettings() {
+    const d = store.design;
+    this.chart?.destroy();
+    this.chart = null;
+    this.chartBox = null;
+    const fields = d.parts.flatMap((part) => (TECHNIQUES[part.tech].mod.settings ?? []).map((f) => {
+      const apply = (value) => {
+        store.snapshot();
+        part.params[f.key] = value;
+        delete part.params.over; // single recoloured beads no longer line up
+        pruneExtras(d);
+        d.colorway = d.colorway ?? null;
+        store.selected = Math.min(store.selected, d.slots.length - 1);
+        store.notify('geometry');
+      };
+      if (f.type === 'text') {
+        return el('label', { class: 'field' }, f.label, el('input', {
+          class: 'input', maxlength: f.max, value: part.params[f.key] ?? '', onchange: (e) => apply(e.target.value.toUpperCase().slice(0, f.max)),
+        }));
+      }
+      return el('label', { class: 'field' }, f.label, el('input', {
+        class: 'input', type: 'number', min: f.min, max: f.max, value: part.params[f.key] ?? '', placeholder: 'výchozí',
+        onchange: (e) => {
+          const v = Math.max(f.min, Math.min(f.max, Math.round(Number(e.target.value) || f.min)));
+          e.target.value = v;
+          apply(v);
+        },
+      }));
+    }));
+    this.tabChart.replaceChildren(el('div', { class: 'tpl-grid' }, fields));
   }
 
   _renderStrandTab() {
@@ -647,6 +737,10 @@ export class Designer {
   _share() {
     const d = store.design;
     const link = shareLink(d);
+    if (!link) {
+      toast(NO_LINK);
+      return;
+    }
     const message = `${this._shareText()}\n\n${link}`;
     const fileName = `${slug(d.name)}.jpg`;
     const canShareFiles = !!navigator.canShare?.({ files: [new File([''], fileName, { type: 'image/jpeg' })] });

@@ -2,6 +2,7 @@
 // Nothing leaves the browser on its own. A link carries a design only when someone sends it.
 import { clone, encodeDesign, decodeDesign, groupsOf, applyColorway } from '../core/design.js';
 import { patternById, DEFAULT_PATTERN } from '../core/presets.js';
+import { encodeShare } from '../core/link.js';
 import { safeStorage } from './util.js';
 
 const CURRENT = 'naramky:current';
@@ -113,8 +114,14 @@ export function restoreSession() {
 
 const appUrl = () => `${location.origin}${location.pathname}`;
 
-export const shareLink = (design) => `${appUrl()}#/n/${encodeDesign(design)}`;
-export const linkFromData = (data) => `${appUrl()}#/n/${data}`;
+export const NO_LINK = 'Tenhle návrh je ze starší verze webu, takže ho odkazem sdílet nejde.';
+
+// Null for a design whose pattern is no longer on the site.
+export function shareLink(design) {
+  const code = encodeShare(design);
+  return code && `${appUrl()}#/n/${code}`;
+}
+export const linkFromData = (data) => shareLink(decodeDesign(data));
 
 // --- Saved designs ---
 

@@ -17,9 +17,11 @@ function studioScene() {
   const dome = new THREE.SphereGeometry(50, 32, 24);
   const col = new Float32Array(dome.attributes.position.count * 3);
   const p = dome.attributes.position;
-  const top = new THREE.Color(0.46, 0.48, 0.52);
-  const mid = new THREE.Color(0.24, 0.24, 0.25);
-  const low = new THREE.Color(0.17, 0.155, 0.14);
+  // Kept dim on purpose. A bright room lays a white veil over every bead and washes the
+  // colour out. Gloss comes from the small bright panels below instead.
+  const top = new THREE.Color(0.17, 0.18, 0.2);
+  const mid = new THREE.Color(0.08, 0.08, 0.085);
+  const low = new THREE.Color(0.05, 0.045, 0.04);
   const tmp = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const y = p.getY(i) / 50;
@@ -33,16 +35,16 @@ function studioScene() {
   // Window with crossbars, up and behind the bracelet, close to its midline. Cylinders
   // mirror it in a long glint whether their holes run along or across the band.
   for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    panel(s, 30, 6.4, 6.4, [-5 + dx * 3.6, 25 + dy * 3.6, -17 + dy * 1.8], 0xfff6ea);
+    panel(s, 36, 4.6, 4.6, [-5 + dx * 2.7, 25 + dy * 2.7, -17 + dy * 1.4], 0xfff6ea);
   }
   // A smaller pane in front catches the rounded bead edges.
-  panel(s, 14, 8, 5, [-8, 26, 16], 0xfff6ea);
+  panel(s, 9, 6, 4, [-8, 26, 16], 0xfff6ea);
   // Big overhead softbox for the broad sheen.
-  panel(s, 1.35, 34, 22, [6, 30, -8], 0xffffff);
+  panel(s, 0.55, 34, 22, [6, 30, -8], 0xffffff);
   // Thin strip on the right gives a rim on the far side of each bead.
   panel(s, 6, 3, 34, [30, 12, 8], 0xeef3ff);
   // Low front fill so the camera-facing side is not dead.
-  panel(s, 1.5, 34, 8, [0, 6, 34], 0xffffff);
+  panel(s, 0.5, 34, 8, [0, 6, 34], 0xffffff);
   return s;
 }
 
@@ -234,5 +236,5 @@ export function surfaceMaterial(id, renderer, size = 768) {
     t.generateMipmaps = true;
     t.needsUpdate = true;
   }
-  return new THREE.MeshStandardMaterial({ map, normalMap, roughness: def.roughness, metalness: 0, envMapIntensity: 0.34 });
+  return new THREE.MeshStandardMaterial({ map, normalMap, roughness: def.roughness, metalness: 0, envMapIntensity: 0.8 });
 }

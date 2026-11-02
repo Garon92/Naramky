@@ -1,0 +1,95 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Kalibrace barev</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js", "three/addons/": "../vendor/three/addons/" } }</script>
+<pre id="out">Měřím…</pre>
+<script type="module">
+// Measures how each finish renders, prints the curves for js/engine/calibration.js and
+// then checks catalogue colours. Target: a rendered bead surface averages to the catalogue hex.
+import { Stage } from '../js/engine/stage.js';
+import { CALIBRATION } from '../js/engine/materials.js';
+import { allBeads } from '../js/core/catalog.js';
+
+const canvas = document.createElement('canvas');
+const stage = new Stage(canvas, { quality: 'high', interactive: false, maxFrames: 12 });
+stage.resize(256, 256, 1);
+stage.setSurface('white');
+const crop = document.createElement('canvas');
+crop.width = crop.height = 128;
+const ctx = crop.getContext('2d', { willReadFrequently: true });
+
+function spec(hex, finish) {
+  const instances = [];
+  for (let r = 0; r < 22; r++) {
+    for (let c = 0; c < 26; c++) instances.push({ shape: 'delica11', slot: 0, s: (c + (r % 2) / 2 - 13) * 1.6, t: (r - 10.5) * 1.3, hex, finish });
+  }
+  return { instances, decals: [], length: 42, width: 29, bed: { sMin: -20, sMax: 20, tMin: -14, tMax: 14 }, lift: 0.8, poseKind: 'flat', findings: null, frameHeight: 1 };
+}
+
+const toLinear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+const toSrgb = (v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
+
+function measure(hex, finish) {
+  stage.setBracelet(spec(hex, finish));
+  stage.frameView({ sCenter: 0, span: 14, tilt: 0.12, fill: 1, frameHeight: 1 });
+  stage.renderStill(10);
+  ctx.drawImage(canvas, 64, 64, 128, 128, 0, 0, 128, 128);
+  const d = ctx.getImageData(0, 0, 128, 128).data;
+  const sum = [0, 0, 0];
+  for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) sum[k] += toLinear(d[i + k] / 255);
+  return sum.map((v) => toSrgb(v / (d.length / 4)) * 255);
+}
+
+function lab(rgb) {
+  const [r, g, b] = rgb.map((v) => toLinear(v / 255));
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const X = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.9505);
+  const Y = f(0.2126 * r + 0.7152 * g + 0.0722 * b);
+  const Z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.089);
+  return [116 * Y - 16, 500 * (X - Y), 200 * (Y - Z)];
+}
+
+const FINISHES = ['opaque', 'matte', 'luster', 'ab', 'metal', 'metalMatte', 'lined', 'colorLined', 'trans', 'silk', 'alabaster'];
+const LEVELS = [0, 0.02, 0.06, 0.15, 0.3, 0.5, 0.75, 1];
+const hexOf = (v) => Math.round(toSrgb(v) * 255).toString(16).padStart(2, '0').repeat(3);
+
+const run = async () => {
+  const curves = {};
+  for (const finish of FINISHES) {
+    delete CALIBRATION[finish];
+    const ys = [];
+    for (const level of LEVELS) {
+      const m = measure(hexOf(level), finish);
+      ys.push(toLinear(((m[0] + m[1] + m[2]) / 3) / 255));
+    }
+    // Keep it strictly rising so it can be inverted.
+    for (let i = 1; i < ys.length; i++) ys[i] = Math.max(ys[i], ys[i - 1] + 1e-4);
+    curves[finish] = { x: LEVELS, y: ys.map((v) => +v.toFixed(4)) };
+    await new Promise((r) => setTimeout(r));
+  }
+  Object.assign(CALIBRATION, curves);
+  const beads = allBeads().filter((b) => !b.extra);
+  const sample = [];
+  const step = Math.max(1, Math.floor(beads.length / (Number(new URLSearchParams(location.search).get('n')) || 120)));
+  for (let i = 0; i < beads.length; i += step) sample.push(beads[i]);
+  const byFinish = {};
+  const worst = [];
+  for (const b of sample) {
+    const target = [0, 2, 4].map((i) => parseInt(b.hex.slice(i, i + 2), 16));
+    const A = lab(measure(b.hex, b.finish));
+    const B = lab(target);
+    const dE = Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]);
+    (byFinish[b.finish] ??= []).push(dE);
+    worst.push([dE, b.code, b.hex, b.finish]);
+    await new Promise((r) => setTimeout(r));
+  }
+  const report = Object.entries(byFinish).map(([f, list]) => `${f}: ${list.length} barev, průměr ΔE ${(list.reduce((a, c) => a + c, 0) / list.length).toFixed(1)}, nejhorší ${Math.max(...list).toFixed(1)}`);
+  window.curves = curves;
+  const all = worst.map((w) => w[0]);
+  report.unshift(`celkem ${all.length} barev, průměr ΔE ${(all.reduce((a, c) => a + c, 0) / all.length).toFixed(1)}`);
+  report.push(`nejhorší: ${worst.sort((a, b) => b[0] - a[0]).slice(0, 8).map((w) => `${w[1]} #${w[2]} ${w[3]} ${w[0].toFixed(0)}`).join(', ')}`);
+  window.report = report;
+  document.getElementById('out').textContent = `${report.join('\n')}\n\n${JSON.stringify(curves)}`;
+};
+window.done = run();
+</script>

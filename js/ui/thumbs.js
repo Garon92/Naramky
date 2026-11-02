@@ -22,7 +22,7 @@ function getStage() {
       stage.camera.fov = 13;
       stage.aperture = 0.004;
       stage.resize(W, H, 1);
-      stage.setSurface('backdrop');
+      stage.setSurface('white');
       return stage;
     })().catch((err) => {
       console.error(err);
@@ -38,7 +38,7 @@ function compact(design) {
   d.metal = 'none';
   for (const part of d.parts) {
     if (part.tech === 'peyote' && !part.cells) {
-      if (part.params.kind === 'motifs') part.params.n = Math.min(part.params.n, compactColumns(part.params));
+      if (['motifs', 'pixels'].includes(part.params.kind)) part.params.n = Math.min(part.params.n, compactColumns(part.params));
       else part.params.n = Math.min(part.params.n, 52);
     }
   }
@@ -50,7 +50,7 @@ function renderInto(stage, item) {
   const spec = sceneSpec(d);
   spec.poseKind = 'flat';
   spec.findings = null;
-  stage.setSurface(d.surface === 'backdrop' ? 'backdrop' : d.surface);
+  stage.setSurface(d.surface);
   stage.setBracelet(spec);
   const span = d.parts[0].tech === 'peyote' ? spec.length * 1.04 : Math.min(spec.length, 62);
   stage.frameView({ sCenter: 0, span, tilt: 0.3, fill: 0.96, frameHeight: 1 });

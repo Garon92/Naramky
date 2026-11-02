@@ -9,17 +9,14 @@ function advance(shape) {
   const def = SHAPES[shape];
   if (def.kind === 'delica') return def.size[1];
   if (def.kind === 'tile') return def.size[1];
+  if (def.kind === 'cube') return def.size[0] * 1.02;
+  if (def.kind === 'bugle' || def.kind === 'bicone') return def.size[1] * 1.02;
   if (def.kind === 'round') return def.size[0] * 0.98;
   return def.size[1] * 0.98;
 }
 
-function perGram(shape) {
-  return { rocaille15: 250, rocaille11: 110, rocaille8: 36, delica11: 200, delica15: 350, round3: 28, round4: 12, halftila: 32 }[shape] ?? 100;
-}
-
-function materialName(shape) {
-  return SHAPES[shape]?.label ?? shape;
-}
+const perGram = (shape) => SHAPES[shape]?.perGram ?? 100;
+const materialName = (shape) => SHAPES[shape]?.label ?? shape;
 
 export function strandBeads(strand, lengthMm) {
   const out = [];

@@ -3,7 +3,7 @@ import { PATTERNS, COLLECTIONS } from '../core/presets.js';
 import { decodeDesign } from '../core/design.js';
 import { flatColor, el, icon, plural, toast, copyText } from './util.js';
 import { thumbImage, forgetThumb } from './thumbs.js';
-import { store, savedList, deleteSaved, duplicateSaved, linkFromData } from './store.js';
+import { store, savedList, deleteSaved, duplicateSaved, linkFromData, NO_LINK } from './store.js';
 
 function colorDots(design) {
   const seen = [];
@@ -84,7 +84,11 @@ export function renderMine(root, { openDesign }) {
             el('span', { class: 'meta' }, el('span', {}, el('b', {}, item.name), el('small', {}, new Date(item.at).toLocaleDateString('cs-CZ'))), colorDots(design)),
           ),
           el('div', { class: 'card-actions' },
-            el('button', { class: 'btn small', onclick: async () => toast((await copyText(linkFromData(item.data))) ? 'Odkaz je zkopírovaný.' : 'Kopírování se nepovedlo.') }, icon('link'), 'Odkaz'),
+            el('button', { class: 'btn small', onclick: async () => {
+              const link = linkFromData(item.data);
+              if (!link) toast(NO_LINK);
+              else toast((await copyText(link)) ? 'Odkaz je zkopírovaný.' : 'Kopírování se nepovedlo.');
+            } }, icon('link'), 'Odkaz'),
             el('button', { class: 'btn small', title: 'Vytvoří kopii, kterou můžeš upravit zvlášť', onclick: () => {
               duplicateSaved(item.id);
               draw();
