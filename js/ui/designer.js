@@ -51,8 +51,9 @@ export class Designer {
     this.viewBar = el('div', { class: 'glass', role: 'group', 'aria-label': 'Pohled' });
     this.surfaceBar = el('div', { class: 'glass surface-picker', role: 'group', 'aria-label': 'Podložka' });
     this.tapBar = el('div', { class: 'glass tap-mode', role: 'group', 'aria-label': 'Co udělá klepnutí na fotku' });
+    this.undoBar = el('div', { class: 'glass undo-bar', role: 'group', 'aria-label': 'Historie změn', hidden: true });
     this.stageWrap = el('div', { class: 'stage-wrap' },
-      el('div', { class: 'stage-bar top-bar' }, this.titleBox, this.tapBar),
+      el('div', { class: 'stage-bar top-bar' }, this.titleBox, el('div', { class: 'stage-tools' }, this.tapBar, this.undoBar)),
       el('div', { class: 'stage-bar bottom-bar' }, this.viewBar, this.surfaceBar),
     );
     this.side = el('aside', { class: 'side' });
@@ -111,6 +112,7 @@ export class Designer {
     if (!d) return;
     this._renderTitle();
     if (kind === 'text') return;
+    this._renderUndo();
     this._renderSlots();
     this._renderPalette();
     if (kind === 'meta') {
@@ -153,6 +155,15 @@ export class Designer {
         store.notify('meta');
       },
     }, s.label)));
+  }
+
+  // Beads are recoloured one tap at a time, so a mistake is undone right where it happened.
+  _renderUndo() {
+    this.undoBar.hidden = this.tapMode !== 'paint';
+    this.undoBar.replaceChildren(
+      el('button', { title: 'Vrátí poslední změnu', disabled: !store.past.length, onclick: () => store.undo() }, icon('undo'), 'Zpět'),
+      el('button', { title: 'Znovu provede změnu vrácenou tlačítkem Zpět', disabled: !store.future.length, onclick: () => store.redo() }, icon('redo'), 'Znovu'),
+    );
   }
 
   _renderTitle() {

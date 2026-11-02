@@ -110,6 +110,11 @@ a { color: inherit; }
 .glass button { border: 0; background: transparent; padding: 6px 10px; min-height: 32px; border-radius: 8px; font-weight: 600; font-size: 13.5px; color: var(--glass-ink); white-space: nowrap; }
 .glass button:hover { background: var(--hover); }
 .glass button.on { background: var(--ink); color: var(--on-ink); }
+.glass button:disabled { opacity: .4; cursor: default; background: transparent; }
+.glass[hidden] { display: none; }
+.stage-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+.stage-tools > * { pointer-events: auto; }
+.undo-bar button { display: inline-flex; align-items: center; gap: 5px; }
 .design-title { display: flex; flex-direction: column; gap: 1px; padding: 7px 12px; background: var(--glass); backdrop-filter: blur(10px); border-radius: 11px; box-shadow: 0 2px 10px rgb(0 0 0 / .14); max-width: min(100%, 460px); min-width: 0; }
 .design-title strong { font: 560 16px/1.2 'Fraunces', Georgia, serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .design-title small { color: var(--glass-sub); font-size: 12.5px; }
