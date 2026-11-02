@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Náramky · plánovač korálkových náramků</title>
+  <meta name="description" content="Navrhni si korálkový náramek. Vyber barvy, podívej se, jak bude vypadat, a pošli ho, komu chceš.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Náramky">
+  <meta property="og:title" content="Náramky: navrhni si korálkový náramek">
+  <meta property="og:description" content="Vyber barvy srdíček a podívej se, jak bude náramek vypadat. Otevři odkaz a uvidíš návrh.">
+  <meta property="og:url" content="https://garon92.github.io/Naramky/">
+  <meta property="og:image" content="https://garon92.github.io/Naramky/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f3eee6">
+  <script>
+    // Set before first paint, so a dark page never flashes light. See js/ui/theme.js.
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem('naramky:theme'); } catch (e) {}
+      var theme = saved === 'dark' || saved === 'light' ? saved : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = theme;
+      if (theme === 'dark') document.querySelector('meta[name=theme-color]').content = '#16121a';
+    })();
+  </script>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/figtree-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+  </script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#/" aria-label="Náramky, na úvod">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><use href="#i-heart"/></svg>
+      <span>Náramky</span>
+    </a>
+    <nav class="tabs" aria-label="Hlavní menu">
+      <a href="#/" data-route="design">Návrh</a>
+      <a href="#/vzory" data-route="gallery">Vzory</a>
+      <a href="#/moje" data-route="mine">Moje návrhy</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button"></button>
+  </header>
+
+  <main id="app"></main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-heart" viewBox="0 0 32 32"><path fill="currentColor" d="M16 28.5C6 21.3 2.5 16.6 2.5 11.4 2.5 7 5.9 3.8 10 3.8c2.5 0 4.7 1.3 6 3.3 1.3-2 3.500-3.300 6-3.300 4.100 0 7.500 3.200 7.500 7.600 0 5.200-3.500 9.900-13.500 17.100Z"/></symbol>
+    <symbol id="i-brush" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 20c2.500 0 4-1.200 4-3a2.500 2.500 0 0 1 5 0c0 2.800-3.800 3-9 3Zm7.500-5L20 5.500a1.800 1.800 0 0 0-2.500-2.500L8 11.500"/></symbol>
+    <symbol id="i-fill" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m11 4 8.500 8.500-7 7a2 2 0 0 1-2.800 0l-5.200-5.200a2 2 0 0 1 0-2.800L11 4Zm0 0L9 2m-5 11h15m1 3s2 2.300 2 3.700a2 2 0 0 1-4 0c0-1.400 2-3.700 2-3.700Z"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m14 6 4 4M4 20l1-4L15.500 5.500a2.100 2.100 0 0 1 3 0 2.100 2.100 0 0 1 0 3L8 19l-4 1Zm9-16 7 7"/></symbol>
+    <symbol id="i-erase" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m8 20-4.300-4.300a2 2 0 0 1 0-2.800L13 3.600a2 2 0 0 1 2.800 0l4.600 4.600a2 2 0 0 1 0 2.800L11 20H8Zm0 0h13M8.500 8.500l7 7"/></symbol>
+    <symbol id="i-stamp" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 20.500C6.500 16.500 3.500 13.800 3.500 10A4.300 4.300 0 0 1 12 8.500 4.300 4.300 0 0 1 20.500 10c0 3.800-3 6.500-8.500 10.500Z"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8 12V5.500a1.500 1.500 0 0 1 3 0V11m0-.500V4a1.500 1.500 0 0 1 3 0v7m0-5.500a1.500 1.500 0 0 1 3 0V12m0-3.500a1.500 1.500 0 0 1 3 0V15a6.500 6.500 0 0 1-6.500 6.500h-1.300a6 6 0 0 1-4.700-2.300L4 14.500a1.700 1.700 0 0 1 2.600-2.100L8 14"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 8h10a6 6 0 0 1 0 12H8M4 8l4-4M4 8l4 4"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M20 8H10a6 6 0 0 0 0 12h6m4-12-4-4m4 4-4 4"/></symbol>
+    <symbol id="i-mirror" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3v18M8.500 7 3 17h5.500V7Zm7 0L21 17h-5.500V7Z"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m21 3-9.500 18-2.500-7.500L3 11l18-8ZM9 13.500 21 3"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M7 9V3h10v6M7 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2m-10-4h10v7H7v-7Z"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm3.500 5h.01M15.500 8h.01M12 12h.01M8.500 16h.01M15.500 16h.01"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M20 14.5A8.500 8.500 0 0 1 9.500 4a8.500 8.500 0 1 0 10.500 10.500Z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 2.500v2.500m0 14v2.500M2.500 12H5m14 0h2.500M5.300 5.300 7 7m10 10 1.700 1.700M5.300 18.700 7 17M17 7l1.700-1.700"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M10 14a4 4 0 0 0 6 .400l3-3a4.200 4.200 0 0 0-6-6l-1.500 1.500M14 10a4 4 0 0 0-6-.400l-3 3a4.200 4.200 0 0 0 6 6l1.500-1.500"/></symbol>
+  </svg>
+
+  <noscript><p class="noscript">Náramky potřebují zapnutý JavaScript.</p></noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
