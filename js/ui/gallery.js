@@ -11,7 +11,7 @@ function colorDots(design) {
   return el('span', { class: 'dots' }, seen.slice(0, 6).map((code) => el('i', { style: { background: flatColor(code) } })));
 }
 
-let collection = 'hearts';
+let collection = COLLECTIONS[0].id;
 
 export function renderGallery(root, { openDesign }) {
   const content = el('div');
@@ -20,7 +20,7 @@ export function renderGallery(root, { openDesign }) {
 
   const draw = () => {
     tabs.replaceChildren(...COLLECTIONS.map((c) => {
-      const count = PATTERNS.filter((p) => p.collection === c.id).length;
+      const count = PATTERNS.filter((p) => c.groups.includes(p.group)).length;
       return el('button', {
         class: collection === c.id ? 'on' : '', role: 'tab', 'aria-selected': String(collection === c.id),
         onclick: () => {
@@ -32,13 +32,8 @@ export function renderGallery(root, { openDesign }) {
     }));
     const meta = COLLECTIONS.find((c) => c.id === collection);
     hint.textContent = meta.hint;
-    const items = PATTERNS.filter((p) => p.collection === collection);
-    const groups = new Map();
-    for (const p of items) {
-      if (!groups.has(p.group)) groups.set(p.group, []);
-      groups.get(p.group).push(p);
-    }
-    content.replaceChildren(...[...groups.entries()].flatMap(([group, list]) => [
+    const groups = meta.groups.map((group) => [group, PATTERNS.filter((p) => p.group === group)]);
+    content.replaceChildren(...groups.flatMap(([group, list]) => [
       el('h2', { class: 'group-title' }, group, el('small', {}, `${list.length} ${plural(list.length, 'vzor', 'vzory', 'vzorů')}`)),
       el('div', { class: 'grid' }, list.map((p) => {
         const design = p.make();

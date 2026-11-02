@@ -10,18 +10,24 @@ const FULL_COLS = colsForWrist(WRIST_DEFAULT, 1.3);
 const BAND_MM = bandLengthMm(WRIST_DEFAULT);
 const HEARTS = ['heartN', 'heartN', 'heartN', 'heartN'];
 
+// The tabs of the gallery, one per way of making a bracelet. A pattern belongs to the tab
+// that lists its group.
 export const COLLECTIONS = [
-  { id: 'hearts', label: 'Srdíčka', hint: 'Barevné kombinace si přepneš přímo v návrhu.' },
-  { id: 'other', label: 'Různé techniky', hint: 'Jiné korálky a jiné způsoby šití, tkaní a uzlování. Postup je u nich jen orientační.' },
-  { id: 'inspire', label: 'Další motivy', hint: 'Co k tomu tematicky sedí.' },
+  { id: 'pasy', label: 'Šité pásy', hint: 'Peyote z korálků Delica: pevný pásek, na kterém dobře vyjde každý motiv. Barevné kombinace si přepneš přímo v návrhu.', groups: ['Čtyři srdíčka', 'Další srdíčka', 'Hvězdy a květiny', 'Geometrie', 'Přechody'] },
+  { id: 'tkane', label: 'Tkané', hint: 'Tkané na stávku. Korálky leží v rovných řadách, takže na nich vyjdou i malé obrázky.', groups: ['Tkané obrázky', 'Tkané vzory'] },
+  { id: 'stehy', label: 'Šité stehy', hint: 'Každý steh má vlastní vazbu a jiný vzhled. Postup je u nich jen orientační.', groups: ['Rybí kost', 'Další stehy'] },
+  { id: 'krajka', label: 'Kytičky a krajka', hint: 'Vzdušné řetízky šité z rokajlů. Postup je u nich jen orientační.', groups: ['Kytičky', 'Krajka'] },
+  { id: 'provazy', label: 'Provazy a uzlíky', hint: 'Kulaté provazy, makramé a střapaté třásně. Postup je u nich jen orientační.', groups: ['Provazy', 'Makramé', 'Třásně'] },
+  { id: 'tvary', label: 'Destičky a tyčinky', hint: 'Jiné tvary korálků: dvoudírkové destičky Tila a dlouhé tyčinky. Postup je u nich jen orientační.', groups: ['Destičky Tila', 'Sady se zig-zagem', 'Tyčinky'] },
+  { id: 'navlekane', label: 'Navlékané', hint: 'Korálky navlečené na niti nebo gumičce, v jednom i v několika pramenech. Postup je u nich jen orientační.', groups: ['Navlékané', 'Navlékané prameny'] },
 ];
 
 const list = [];
 
-function addPeyote({ id, collection = 'inspire', group, name, params, colorways }) {
+function addPeyote({ id, group, name, params, colorways }) {
   const full = { w: WIDTH, n: FULL_COLS, size: DEFAULT_SIZE, ...params };
   list.push({
-    id, collection, group, name, colorways,
+    id, group, name, colorways,
     make() {
       const slots = generate(full).roles.map((role) => ({ ...role, code: 'white' }));
       const d = makeDesign({ name, slots, preset: id, parts: [{ tech: 'peyote', params: JSON.parse(JSON.stringify(full)), cells: null }] });
@@ -83,7 +89,7 @@ for (const [name, bg, hearts] of [
 ]) plainWays.push({ name, set: 'Barevný mix', colors: heartColors(bg, hearts) });
 
 addPeyote({
-  id: 'srdce', collection: 'hearts', group: 'Čtyři srdíčka', name: '4 srdíčka',
+  id: 'srdce', group: 'Čtyři srdíčka', name: '4 srdíčka',
   params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2 },
   colorways: plainWays,
 });
@@ -103,7 +109,7 @@ const END_WAYS = [
   ['Fantazie', 'black', 'sky lime yellow pink', 'lilac'],
 ];
 addPeyote({
-  id: 'srdce-konce', collection: 'hearts', group: 'Čtyři srdíčka', name: '4 srdíčka s barevnými konci',
+  id: 'srdce-konce', group: 'Čtyři srdíčka', name: '4 srdíčka s barevnými konci',
   params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2, ends: 2 },
   colorways: END_WAYS.map(([name, bg, hearts, ends]) => ({
     name, set: ['black', 'navy', 'forest', 'petrol', 'berry', 'raspberry'].includes(bg) ? 'Tmavý podklad' : bg === 'white' || bg === 'cream' ? 'Světlý podklad' : 'Barevný podklad',
@@ -118,13 +124,13 @@ const CLASSIC = [
   ['Duha', 'pearl', 'royal sky pink purple'], ['Tmavá elegantní', 'navy', 'sky sky pink pink'],
 ];
 addPeyote({
-  id: 'srdce-mezi', collection: 'hearts', group: 'Čtyři srdíčka', name: '4 srdíčka se zlatými mezičlánky',
+  id: 'srdce-mezi', group: 'Čtyři srdíčka', name: '4 srdíčka se zlatými mezičlánky',
   params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 1, spacer: 'dot', ends: 2 },
   colorways: CLASSIC.map(([name, bg, hearts]) => ({ name, colors: heartColors(bg, hearts, { Mezičlánky: 'gold', Konce: 'gold' }) })),
 });
 
 addPeyote({
-  id: 'srdce-troj', collection: 'hearts', group: 'Čtyři srdíčka', name: '4 srdíčka s trojúhelníky',
+  id: 'srdce-troj', group: 'Čtyři srdíčka', name: '4 srdíčka s trojúhelníky',
   params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2, ends: 2, bg2: true },
   colorways: [
     { name: 'Korálová', colors: heartColors('coral', 'aqua amber white purple', { Konce: 'raspberry', Trojúhelníky: 'blush' }) },
@@ -152,7 +158,7 @@ const ZIGZAG_WAYS = [
   zigzag('Černá a tyrkysová', 'black', 'turq', 'black'),
 ];
 list.push({
-  id: 'zigzag', collection: 'other', group: 'Šité', name: 'Šitý zig-zag', colorways: ZIGZAG_WAYS,
+  id: 'zigzag', group: 'Destičky Tila', name: 'Šitý zig-zag', colorways: ZIGZAG_WAYS,
   make() {
     const d = makeDesign({
       name: 'Šitý zig-zag', preset: 'zigzag',
@@ -165,7 +171,7 @@ list.push({
 });
 
 addPeyote({
-  id: 'melir', collection: 'other', group: 'Šité', name: 'Melírovaný pás',
+  id: 'melir', group: 'Přechody', name: 'Melírovaný pás',
   params: { kind: 'speckle', w: 10, size: 11, n: colsForWrist(WRIST_DEFAULT, 1.6), weights: [0.42, 0.26, 0.2, 0.12], taper: true },
   colorways: [
     { name: 'Modrý', colors: { 'Barva 1': 'royal', 'Barva 2': 'azure', 'Barva 3': 'silverlined', 'Barva 4': 'olive' } },
@@ -259,7 +265,7 @@ const SETS = [
 for (const set of SETS) {
   const id = `sada-${set.slug}`;
   list.push({
-    id, collection: 'other', group: set.tila ? 'Sady se zig-zagem' : 'Navlékané prameny', name: set.name, colorways: [],
+    id, group: set.tila ? 'Sady se zig-zagem' : 'Navlékané prameny', name: set.name, colorways: [],
     make() {
       const slots = set.slots.map((code, i) => {
         const label = set.tila && i < 3 ? TILA_GROUPS[i] : `Barva ${i + 1}`;
@@ -276,27 +282,27 @@ const motifWay = (name, bg, motifs, groupName, extra = {}) => ({ name, colors: {
 const ways = (...items) => items.map(([name, ...colors]) => ({ name, colors: Object.fromEntries(colors) }));
 
 addPeyote({
-  id: 'rodina', group: 'Rodina', name: 'Velká a malá srdíčka',
+  id: 'rodina', group: 'Další srdíčka', name: 'Velká a malá srdíčka',
   params: { kind: 'motifs', seq: ['heartS', 'heartN', 'heartN', 'heartS'], motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2, ends: 2 },
   colorways: [motifWay('Rodinná', 'pearl', 'pink cobalt raspberry sky', 'Srdíčka', { Konce: 'gold' })],
 });
 addPeyote({
-  id: 'dva-a-dve', group: 'Rodina', name: 'Šest srdíček',
+  id: 'dva-a-dve', group: 'Další srdíčka', name: 'Šest srdíček',
   params: { kind: 'motifs', seq: ['heartS', 'heartS', 'heartN', 'heartN', 'heartS', 'heartS'], motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 1, ends: 2 },
   colorways: [motifWay('Dva a dvě', 'cream', 'royal sky raspberry cobalt pink blush', 'Srdíčka', { Konce: 'gold' })],
 });
 addPeyote({
-  id: 'radka', group: 'Rodina', name: 'Řada malých srdíček',
+  id: 'radka', group: 'Další srdíčka', name: 'Řada malých srdíček',
   params: { kind: 'motifs', seq: Array(8).fill('heartS'), motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2, ends: 2 },
   colorways: [motifWay('Duhová', 'white', 'royal pink sky blush turq hot purple yellow', 'Srdíčka', { Konce: 'gold' })],
 });
 addPeyote({
-  id: 'jedno', group: 'Rodina', name: 'Jedno velké srdce',
+  id: 'jedno', group: 'Další srdíčka', name: 'Jedno velké srdce',
   params: { kind: 'motifs', w: 15, seq: ['heartL'], motifLabel: 'Srdce', motifGroup: 'Srdce', gap: 1 },
   colorways: [motifWay('Malinová', 'blush', 'raspberry', 'Srdce')],
 });
 addPeyote({
-  id: 'krizky', group: 'Rodina', name: 'Srdíčka a křížky',
+  id: 'krizky', group: 'Další srdíčka', name: 'Srdíčka a křížky',
   params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 1, spacer: 'cross' },
   colorways: [motifWay('Stříbrná', 'white', 'cobalt cobalt raspberry raspberry', 'Srdíčka', { Mezičlánky: 'palladium' })],
 });
@@ -378,7 +384,7 @@ function addTech({ id, group, name, tech, params = {}, labels, ways: rows, metal
     name: wayName, colors: Object.fromEntries(labels.map((label, i) => [label, codes[i]])),
   }));
   list.push({
-    id, collection: 'other', group, name, colorways,
+    id, group, name, colorways,
     make() {
       const d = makeDesign({
         name, preset: id, metal,
@@ -392,7 +398,7 @@ function addTech({ id, group, name, tech, params = {}, labels, ways: rows, metal
 }
 
 function addLoom({ id, group = 'Tkané obrázky', name, params, ways: colorways }) {
-  addPeyote({ id, collection: 'other', group, name, params: { w: 13, size: 11, n: colsForWrist(WRIST_DEFAULT, 1.6), loom: true, ...params }, colorways });
+  addPeyote({ id, group, name, params: { w: 13, size: 11, n: colsForWrist(WRIST_DEFAULT, 1.6), loom: true, ...params }, colorways });
 }
 
 const picture = (name, colors) => ({ name, colors });
@@ -475,35 +481,35 @@ addLoom({
   ways: [sky('Západ slunce', 'purple', 'hot', 'orange', 'yellow', 'berry', 'navy'), sky('Letní den', 'sky', 'paleblue', 'white', 'yellow', 'emerald', 'green'), sky('Noc', 'navy', 'cobalt', 'deep', 'pearl', 'forest', 'black')],
 });
 
-addTech({ id: 'rybi-pruhy', group: 'Šité stehy', name: 'Rybí kost s pruhy', tech: 'herringbone', params: { pairs: 3 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Moře', 'cobalt', 'turq', 'white'], ['Malina', 'raspberry', 'blush', 'gold']] });
-addTech({ id: 'rybi-cikcak', group: 'Šité stehy', name: 'Rybí kost s cik-cakem', tech: 'herringbone', params: { pairs: 4, mode: 'zigzag', band: 4 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Oheň', 'red', 'orange', 'yellow'], ['Les', 'forest', 'green', 'pistachio']] });
-addTech({ id: 'rybi-bloky', group: 'Šité stehy', name: 'Rybí kost s bloky', tech: 'herringbone', params: { pairs: 3, mode: 'blocks', band: 8 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Čokoláda', 'brown', 'cream', 'gold'], ['Bonbón', 'pink', 'aqua', 'yellow']] });
-addTech({ id: 'raw', group: 'Šité stehy', name: 'Pravoúhlé čtverečky', tech: 'raw', params: { rows: 2 }, labels: ['Podélné korálky', 'Příčné korálky', 'Středy'], ways: [['Perly a zlato', 'stonepearl', 'stonepearl', 'gold'], ['Dvoubarevné', 'turq', 'royal', 'yellow'], ['Černé a stříbrné', 'black', 'silver', 'silver']] });
-addTech({ id: 'petrohrad', group: 'Šité stehy', name: 'Petrohradský řetěz', tech: 'petersburg', labels: ['Střed', 'Lístky', 'Špičky'], ways: [['Větvička', 'emerald', 'green', 'amber'], ['Zlatý', 'gold', 'galvgold', 'cream'], ['Půlnoční', 'navy', 'silver', 'sky']] });
+addTech({ id: 'rybi-pruhy', group: 'Rybí kost', name: 'Rybí kost s pruhy', tech: 'herringbone', params: { pairs: 3 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Moře', 'cobalt', 'turq', 'white'], ['Malina', 'raspberry', 'blush', 'gold']] });
+addTech({ id: 'rybi-cikcak', group: 'Rybí kost', name: 'Rybí kost s cik-cakem', tech: 'herringbone', params: { pairs: 4, mode: 'zigzag', band: 4 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Oheň', 'red', 'orange', 'yellow'], ['Les', 'forest', 'green', 'pistachio']] });
+addTech({ id: 'rybi-bloky', group: 'Rybí kost', name: 'Rybí kost s bloky', tech: 'herringbone', params: { pairs: 3, mode: 'blocks', band: 8 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Čokoláda', 'brown', 'cream', 'gold'], ['Bonbón', 'pink', 'aqua', 'yellow']] });
+addTech({ id: 'raw', group: 'Další stehy', name: 'Pravoúhlé čtverečky', tech: 'raw', params: { rows: 2 }, labels: ['Podélné korálky', 'Příčné korálky', 'Středy'], ways: [['Perly a zlato', 'stonepearl', 'stonepearl', 'gold'], ['Dvoubarevné', 'turq', 'royal', 'yellow'], ['Černé a stříbrné', 'black', 'silver', 'silver']] });
+addTech({ id: 'petrohrad', group: 'Další stehy', name: 'Petrohradský řetěz', tech: 'petersburg', labels: ['Střed', 'Lístky', 'Špičky'], ways: [['Větvička', 'emerald', 'green', 'amber'], ['Zlatý', 'gold', 'galvgold', 'cream'], ['Půlnoční', 'navy', 'silver', 'sky']] });
 
 addTech({ id: 'spirala', group: 'Provazy', name: 'Spirálový provaz', tech: 'spiral', labels: ['Jádro', 'Spirála', 'Akcenty'], ways: [['Moře', 'teal', 'turq', 'gold'], ['Západ slunce', 'berry', 'orange', 'yellow'], ['Černá a zlatá', 'black', 'black', 'gold']] });
 addTech({ id: 'provaz-spirala', group: 'Provazy', name: 'Háčkovaný provaz, spirála', tech: 'rope', params: { mode: 'spiral', colors: 3 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Lízátko', 'hot', 'white', 'turq'], ['Medová', 'amber', 'brown', 'cream']] });
 addTech({ id: 'provaz-pruhy', group: 'Provazy', name: 'Háčkovaný provaz, proužky', tech: 'rope', params: { mode: 'bands', colors: 3, band: 4 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Námořnický', 'navy', 'white', 'red'], ['Pastel', 'paleblue', 'blush', 'paleyellow']] });
 addTech({ id: 'provaz-melir', group: 'Provazy', name: 'Háčkovaný provaz, melír', tech: 'rope', params: { mode: 'mix', colors: 3, around: 8 }, labels: ['Barva 1', 'Barva 2', 'Barva 3'], ways: [['Tyrkysový', 'turq', 'aqua', 'white'], ['Fialový', 'purple', 'lilac', 'orchid']] });
-addTech({ id: 'strapaty', group: 'Provazy', name: 'Střapatý z kapek', tech: 'fringe', params: { colors: 3 }, labels: ['Kapky 1', 'Kapky 2', 'Kapky 3', 'Šňůrka'], ways: [['Mořská tráva', 'emerald', 'turq', 'lime', 'black'], ['Růžový', 'hot', 'pink', 'blush', 'white'], ['Sněhový', 'white', 'paleblue', 'silver', 'white']] });
-addTech({ id: 'strapaty-pruhy', group: 'Provazy', name: 'Střapatý s pruhy', tech: 'fringe', params: { colors: 3, mode: 'bands', band: 44 }, labels: ['Kapky 1', 'Kapky 2', 'Kapky 3', 'Šňůrka'], ways: [['Duhový', 'hot', 'yellow', 'turq', 'black'], ['Podzim', 'red', 'amber', 'brown', 'black']] });
+addTech({ id: 'strapaty', group: 'Třásně', name: 'Střapatý z kapek', tech: 'fringe', params: { colors: 3 }, labels: ['Kapky 1', 'Kapky 2', 'Kapky 3', 'Šňůrka'], ways: [['Mořská tráva', 'emerald', 'turq', 'lime', 'black'], ['Růžový', 'hot', 'pink', 'blush', 'white'], ['Sněhový', 'white', 'paleblue', 'silver', 'white']] });
+addTech({ id: 'strapaty-pruhy', group: 'Třásně', name: 'Střapatý s pruhy', tech: 'fringe', params: { colors: 3, mode: 'bands', band: 44 }, labels: ['Kapky 1', 'Kapky 2', 'Kapky 3', 'Šňůrka'], ways: [['Duhový', 'hot', 'yellow', 'turq', 'black'], ['Podzim', 'red', 'amber', 'brown', 'black']] });
 
-addTech({ id: 'kyticky', group: 'Kytičky a krajka', name: 'Kytičkový řetěz', tech: 'daisy', labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Kopretiny', 'white', 'amber', 'green'], ['Pomněnky', 'sky', 'yellow', 'white'], ['Sedmikrásky', 'blush', 'yellow', 'emerald']] });
-addTech({ id: 'kyticky-husto', group: 'Kytičky a krajka', name: 'Husté kytičky', tech: 'daisy', params: { links: 1 }, labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Levandule', 'lilac', 'white', 'purple'], ['Vlčí mák', 'red', 'black', 'emerald']] });
-addTech({ id: 'kyticky-dve', group: 'Kytičky a krajka', name: 'Louka ve dvou řadách', tech: 'daisy', params: { rows: 2, links: 3 }, labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Louka', 'hot', 'yellow', 'green'], ['Zimní', 'white', 'silver', 'paleblue']] });
-addTech({ id: 'sitka', group: 'Kytičky a krajka', name: 'Krajková síťka', tech: 'net', params: { rows: 3 }, labels: ['Síť', 'Uzly', 'Druhá řada'], ways: [['Tyrkys a zlato', 'turq', 'gold', 'turq'], ['Černá krajka', 'black', 'silver', 'black'], ['Perlová', 'white', 'stonepearl', 'white']] });
-addTech({ id: 'sitka-uzka', group: 'Kytičky a krajka', name: 'Úzká síťka', tech: 'net', params: { rows: 2, edge: 2, twoTone: true }, labels: ['Síť', 'Uzly', 'Druhá řada'], ways: [['Růže', 'raspberry', 'gold', 'blush'], ['Moře', 'royal', 'white', 'aqua']] });
+addTech({ id: 'kyticky', group: 'Kytičky', name: 'Kytičkový řetěz', tech: 'daisy', labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Kopretiny', 'white', 'amber', 'green'], ['Pomněnky', 'sky', 'yellow', 'white'], ['Sedmikrásky', 'blush', 'yellow', 'emerald']] });
+addTech({ id: 'kyticky-husto', group: 'Kytičky', name: 'Husté kytičky', tech: 'daisy', params: { links: 1 }, labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Levandule', 'lilac', 'white', 'purple'], ['Vlčí mák', 'red', 'black', 'emerald']] });
+addTech({ id: 'kyticky-dve', group: 'Kytičky', name: 'Louka ve dvou řadách', tech: 'daisy', params: { rows: 2, links: 3 }, labels: ['Okvětí', 'Středy', 'Spojky'], ways: [['Louka', 'hot', 'yellow', 'green'], ['Zimní', 'white', 'silver', 'paleblue']] });
+addTech({ id: 'sitka', group: 'Krajka', name: 'Krajková síťka', tech: 'net', params: { rows: 3 }, labels: ['Síť', 'Uzly', 'Druhá řada'], ways: [['Tyrkys a zlato', 'turq', 'gold', 'turq'], ['Černá krajka', 'black', 'silver', 'black'], ['Perlová', 'white', 'stonepearl', 'white']] });
+addTech({ id: 'sitka-uzka', group: 'Krajka', name: 'Úzká síťka', tech: 'net', params: { rows: 2, edge: 2, twoTone: true }, labels: ['Síť', 'Uzly', 'Druhá řada'], ways: [['Růže', 'raspberry', 'gold', 'blush'], ['Moře', 'royal', 'white', 'aqua']] });
 
-addTech({ id: 'makrame', group: 'Uzlíky a šňůrky', name: 'Makramé s kuličkami', tech: 'macrame', params: { balls: 5, knots: 3 }, labels: ['Kuličky', 'Šňůrka', 'Koncové korálky'], ways: [['Černá a zlatá', 'gold', 'black', 'gold'], ['Tyrkys a hnědá', 'turq', 'brown', 'turq'], ['Perly', 'stonepearl', 'navy', 'stonepearl']] });
-addTech({ id: 'makrame-velke', group: 'Uzlíky a šňůrky', name: 'Makramé s velkými kuličkami', tech: 'macrame', params: { balls: 3, knots: 5, big: true }, labels: ['Kuličky', 'Šňůrka', 'Koncové korálky'], ways: [['Hematit', 'hematite', 'black', 'hematite'], ['Měsíční kámen', 'moon', 'silver', 'moon'], ['Amazonit', 'amazonite', 'cream', 'amazonite']] });
+addTech({ id: 'makrame', group: 'Makramé', name: 'Makramé s kuličkami', tech: 'macrame', params: { balls: 5, knots: 3 }, labels: ['Kuličky', 'Šňůrka', 'Koncové korálky'], ways: [['Černá a zlatá', 'gold', 'black', 'gold'], ['Tyrkys a hnědá', 'turq', 'brown', 'turq'], ['Perly', 'stonepearl', 'navy', 'stonepearl']] });
+addTech({ id: 'makrame-velke', group: 'Makramé', name: 'Makramé s velkými kuličkami', tech: 'macrame', params: { balls: 3, knots: 5, big: true }, labels: ['Kuličky', 'Šňůrka', 'Koncové korálky'], ways: [['Hematit', 'hematite', 'black', 'hematite'], ['Měsíční kámen', 'moon', 'silver', 'moon'], ['Amazonit', 'amazonite', 'cream', 'amazonite']] });
 
-addTech({ id: 'mozaika', group: 'Zvláštní korálky', name: 'Mozaika z Tila', tech: 'tilagrid', params: { rows: 2 }, labels: ['Destičky A', 'Destičky B', 'Okraje'], ways: [['Šachovnice', 'black', 'white', 'silver'], ['Pastel', 'blush', 'paleblue', 'gold'], ['Moře', 'turq', 'cobalt', 'white']] });
-addTech({ id: 'mozaika-rada', group: 'Zvláštní korálky', name: 'Tila v jedné řadě', tech: 'tilagrid', params: { rows: 1 }, labels: ['Destičky A', 'Destičky B', 'Okraje'], ways: [['Zlato a krém', 'cream', 'gold', 'gold'], ['Bonbón', 'hot', 'aqua', 'white']] });
-addTech({ id: 'zebricek', group: 'Zvláštní korálky', name: 'Žebříček z tyčinek', tech: 'ladder', params: { colors: 3 }, labels: ['Tyčinky 1', 'Tyčinky 2', 'Tyčinky 3', 'Okraje'], ways: [['Stříbrný s modrou', 'silver', 'royal', 'sky', 'silver'], ['Zlatý', 'gold', 'black', 'cream', 'gold'], ['Západ slunce', 'orange', 'hot', 'yellow', 'berry']] });
-addTech({ id: 'zebricek-kratky', group: 'Zvláštní korálky', name: 'Úzký žebříček', tech: 'ladder', params: { colors: 2, short: true, seq: [0, 1] }, labels: ['Tyčinky 1', 'Tyčinky 2', 'Okraje'], ways: [['Černobílý', 'black', 'white', 'silver'], ['Lila', 'lilac', 'purple', 'gold']] });
-addTech({ id: 'tyckovy-cikcak', group: 'Zvláštní korálky', name: 'Cik-cak z tyčinek', tech: 'buglezig', labels: ['Tyčinky', 'Špičky'], ways: [['Kovový', 'silver', 'royal'], ['Korálový', 'coral', 'gold']] });
-addTech({ id: 'tyckove-kosoctverce', group: 'Zvláštní korálky', name: 'Kosočtverce z tyčinek', tech: 'buglezig', params: { double: true }, labels: ['Tyčinky', 'Špičky'], ways: [['Zlaté', 'gold', 'cream'], ['Tyrkysové', 'turq', 'gold'], ['Fialové', 'purple', 'silver']] });
-addTech({ id: 'pismenka', group: 'Zvláštní korálky', name: 'Kostky s písmeny', tech: 'letters', params: { text: 'LÁSKA' }, labels: ['Kostky', 'Písmena', 'Korálky', 'Akcenty'], ways: [['Klasické', 'white', 'black', 'turq', 'gold'], ['Růžové', 'blush', 'raspberry', 'pink', 'white'], ['Černé', 'black', 'white', 'silver', 'gold']] });
+addTech({ id: 'mozaika', group: 'Destičky Tila', name: 'Mozaika z Tila', tech: 'tilagrid', params: { rows: 2 }, labels: ['Destičky A', 'Destičky B', 'Okraje'], ways: [['Šachovnice', 'black', 'white', 'silver'], ['Pastel', 'blush', 'paleblue', 'gold'], ['Moře', 'turq', 'cobalt', 'white']] });
+addTech({ id: 'mozaika-rada', group: 'Destičky Tila', name: 'Tila v jedné řadě', tech: 'tilagrid', params: { rows: 1 }, labels: ['Destičky A', 'Destičky B', 'Okraje'], ways: [['Zlato a krém', 'cream', 'gold', 'gold'], ['Bonbón', 'hot', 'aqua', 'white']] });
+addTech({ id: 'zebricek', group: 'Tyčinky', name: 'Žebříček z tyčinek', tech: 'ladder', params: { colors: 3 }, labels: ['Tyčinky 1', 'Tyčinky 2', 'Tyčinky 3', 'Okraje'], ways: [['Stříbrný s modrou', 'silver', 'royal', 'sky', 'silver'], ['Zlatý', 'gold', 'black', 'cream', 'gold'], ['Západ slunce', 'orange', 'hot', 'yellow', 'berry']] });
+addTech({ id: 'zebricek-kratky', group: 'Tyčinky', name: 'Úzký žebříček', tech: 'ladder', params: { colors: 2, short: true, seq: [0, 1] }, labels: ['Tyčinky 1', 'Tyčinky 2', 'Okraje'], ways: [['Černobílý', 'black', 'white', 'silver'], ['Lila', 'lilac', 'purple', 'gold']] });
+addTech({ id: 'tyckovy-cikcak', group: 'Tyčinky', name: 'Cik-cak z tyčinek', tech: 'buglezig', labels: ['Tyčinky', 'Špičky'], ways: [['Kovový', 'silver', 'royal'], ['Korálový', 'coral', 'gold']] });
+addTech({ id: 'tyckove-kosoctverce', group: 'Tyčinky', name: 'Kosočtverce z tyčinek', tech: 'buglezig', params: { double: true }, labels: ['Tyčinky', 'Špičky'], ways: [['Zlaté', 'gold', 'cream'], ['Tyrkysové', 'turq', 'gold'], ['Fialové', 'purple', 'silver']] });
+addTech({ id: 'pismenka', group: 'Navlékané', name: 'Kostky s písmeny', tech: 'letters', params: { text: 'LÁSKA' }, labels: ['Kostky', 'Písmena', 'Korálky', 'Akcenty'], ways: [['Klasické', 'white', 'black', 'turq', 'gold'], ['Růžové', 'blush', 'raspberry', 'pink', 'white'], ['Černé', 'black', 'white', 'silver', 'gold']] });
 
 const strandOf = (id, name, labels, strands, rows) => addTech({
   id, group: 'Navlékané', name, tech: 'strand', labels, ways: rows,

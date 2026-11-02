@@ -14,12 +14,16 @@ import {
 const hearts = () => patternById('srdce').make();
 
 test('a pattern is a shape: colour combinations live inside one pattern', () => {
-  const inHearts = PATTERNS.filter((p) => p.collection === 'hearts');
+  const inHearts = PATTERNS.filter((p) => p.group === 'Čtyři srdíčka');
   assert.equal(inHearts.length, 4, 'plain, with ends, with spacers, with triangles');
   const combos = inHearts.reduce((sum, p) => sum + p.colorways.length, 0);
   assert.equal(combos, 48 + 30 + 8, 'every combination from the three images is kept');
   assert.equal(new Set(PATTERNS.map((p) => p.id)).size, PATTERNS.length);
-  for (const p of PATTERNS) assert.ok(COLLECTIONS.some((c) => c.id === p.collection));
+});
+
+test('every pattern sits in exactly one tab, and no tab lists an empty group', () => {
+  for (const p of PATTERNS) assert.equal(COLLECTIONS.filter((c) => c.groups.includes(p.group)).length, 1, p.id);
+  for (const group of COLLECTIONS.flatMap((c) => c.groups)) assert.ok(PATTERNS.some((p) => p.group === group), group);
 });
 
 test('colour combinations of a pattern never change its shape', () => {
