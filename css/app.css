@@ -111,6 +111,8 @@ a { color: inherit; }
 .glass button { border: 0; background: transparent; padding: 6px 10px; min-height: 32px; border-radius: 8px; font-weight: 600; font-size: 13.5px; color: var(--glass-ink); white-space: nowrap; }
 .glass button:hover { background: var(--hover); }
 .glass button.on { background: var(--ink); color: var(--on-ink); }
+.surface-select { display: none; align-items: center; gap: 2px; padding: 3px 4px 3px 10px; font-weight: 600; font-size: 13px; color: var(--glass-sub); }
+.surface-select select { min-height: 32px; padding: 0 4px; border: 0; border-radius: 8px; background: transparent; color: var(--glass-ink); font: inherit; font-weight: 600; }
 .glass button:disabled { opacity: .4; cursor: default; background: transparent; }
 .glass[hidden] { display: none; }
 .stage-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
@@ -361,6 +363,7 @@ dialog p { margin: 0 0 12px; color: var(--muted); font-size: 14.5px; }
   .tabs a { padding: 6px 10px; font-size: 14px; }
   .brand span { font-size: 20px; }
   .stage-bar.bottom-bar .surface-picker { display: none; }
+  .stage-bar.bottom-bar .surface-select { display: inline-flex; }
 }
 /* On a computer the window is the workspace: the photo stays put while the panels scroll. */
 @media screen and (min-width: 981px) and (min-height: 600px) {
@@ -381,6 +384,7 @@ dialog p { margin: 0 0 12px; color: var(--muted); font-size: 14.5px; }
 }
 @media (max-width: 380px) {
   .brand span { display: none; }
+  .surface-select span { display: none; }
   .top { gap: 6px; padding: 0 10px; }
   .tabs a { padding: 6px 8px; font-size: 13.5px; }
   .theme-toggle { margin-left: 0; }

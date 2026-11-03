@@ -58,11 +58,13 @@ export class Designer {
     this.titleBox = el('div', { class: 'design-title' });
     this.viewBar = el('div', { class: 'glass', role: 'group', 'aria-label': 'Pohled' });
     this.surfaceBar = el('div', { class: 'glass surface-picker', role: 'group', 'aria-label': 'Podložka' });
+    // On a phone the row of surfaces does not fit beside the views, so it folds into one choice.
+    this.surfaceSelect = el('label', { class: 'glass surface-select' }, el('span', {}, 'Stůl'));
     this.tapBar = el('div', { class: 'glass tap-mode', role: 'group', 'aria-label': 'Co udělá klepnutí na fotku' });
     this.undoBar = el('div', { class: 'glass undo-bar', role: 'group', 'aria-label': 'Historie změn', hidden: true });
     this.stageWrap = el('div', { class: 'stage-wrap' },
       el('div', { class: 'stage-bar top-bar' }, this.titleBox, el('div', { class: 'stage-tools' }, this.tapBar, this.undoBar)),
-      el('div', { class: 'stage-bar bottom-bar' }, this.viewBar, this.surfaceBar),
+      el('div', { class: 'stage-bar bottom-bar' }, this.viewBar, this.surfaceBar, this.surfaceSelect),
     );
     this.side = el('aside', { class: 'side' });
     this.lower = el('section', { class: 'lower' });
@@ -228,14 +230,17 @@ export class Designer {
         this._setTapMode(id);
       },
     }, label)));
+    const setSurface = (id) => {
+      store.design.surface = id;
+      this.photo.stage?.setSurface(id);
+      this._renderBars();
+      store.notify('meta');
+    };
+    this.surfaceSelect.replaceChildren(this.surfaceSelect.firstChild, el('select', { 'aria-label': 'Podložka pod náramkem', onchange: (e) => setSurface(e.target.value) },
+      SURFACE_LIST.map((s) => el('option', { value: s.id, selected: store.design?.surface === s.id }, s.label))));
     this.surfaceBar.replaceChildren(...SURFACE_LIST.map((s) => el('button', {
       class: store.design?.surface === s.id ? 'on' : '', 'aria-pressed': String(store.design?.surface === s.id),
-      onclick: () => {
-        store.design.surface = s.id;
-        this.photo.stage?.setSurface(s.id);
-        this._renderBars();
-        store.notify('meta');
-      },
+      onclick: () => setSurface(s.id),
     }, s.label)));
   }
 
