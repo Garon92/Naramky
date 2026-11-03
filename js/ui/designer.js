@@ -6,7 +6,7 @@ import { ChartEditor } from './chart.js';
 import { renderGuide } from './guide.js';
 import { el, icon, beadSwatch, flatColor, colorTitle, displayCode, toast, copyText, saveFile, czNumber, plural, safeStorage } from './util.js';
 import { Composer } from './composer.js';
-import { PALETTE, FAMILIES, allBeads, extraBeads, czName, finishLabel, bead, codeOf } from '../core/catalog.js';
+import { PALETTE, FAMILIES, allBeads, extraBeads, czName, finishLabel, bead, codeOf, isMatte, lightToDark } from '../core/catalog.js';
 import { TECHNIQUES, paintablePart, applyWrist, groupsOf, groupOfSlot, setGroupColor, applyColorway, setBeadSlot, extraSlotFor, pruneExtras, resetBead, removeExtraColor, EXTRA_GROUP } from '../core/design.js';
 import { patternById } from '../core/presets.js';
 import { bandSize, figuresOf } from '../techniques/peyote.js';
@@ -509,7 +509,11 @@ export class Designer {
       onpointerenter: () => this._hoverTip(code),
       onpointerleave: () => this._showTip(),
     }, beadSwatch(code));
-    this.paletteBox.replaceChildren(...PALETTE.map((p) => swatch(p.code)));
+    const shelf = (label, list) => [el('p', { class: 'palette-head' }, label), ...list.map((p) => swatch(p.code))];
+    this.paletteBox.replaceChildren(
+      ...shelf('Lesklé', PALETTE.filter((p) => !isMatte(p.finish))),
+      ...shelf('Matné', PALETTE.filter((p) => isMatte(p.finish))),
+    );
     this._swatch = swatch;
     if (this.catalogOpen) this._renderCatalogGrid();
   }
@@ -559,7 +563,7 @@ export class Designer {
     let items;
     if (q) items = allBeads().filter((b) => b.code.includes(q));
     else if (this.family === 'extra') items = extraBeads();
-    else items = allBeads().filter((b) => b.family === this.family && !b.extra);
+    else items = allBeads().filter((b) => b.family === this.family && !b.extra).sort(lightToDark);
     this.catalogGrid.replaceChildren(...items.slice(0, 260).map((b) => this._swatch(b.code)));
   }
 

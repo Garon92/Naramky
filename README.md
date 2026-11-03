@@ -6,7 +6,7 @@ Plánovač korálkových náramků s náhledem, který vypadá jako fotka. Běž
 
 ## Co to umí
 
-- **Výběr barev:** klepneš na srdíčko nebo část náramku a vybereš barvu, pro všechny stejné kusy najednou, nebo pro každý zvlášť. Přidat se dají i přebarvené kusy, klepnutím na jednotlivé korálky. Barvy jsou skutečné korálky Miyuki Delica, je tu 52 oblíbených a celý katalog.
+- **Výběr barev:** klepneš na srdíčko nebo část náramku a vybereš barvu, pro všechny stejné kusy najednou, nebo pro každý zvlášť. Přidat se dají i přebarvené kusy, klepnutím na jednotlivé korálky. Barvy jsou skutečné korálky Miyuki Delica, v oblíbených je 97 lesklých i matných, seřazených od světlých po tmavé, a pak celý katalog.
 - **Skládačka motivů:** u šitých a tkaných pásů je nahoře řada dlaždic. Každý motiv jde vyměnit, přesunout, zdvojit nebo odebrat, mezi tvary jsou i písmena na iniciály. Vlastní tvar se nakreslí v mřížce a hned se ukáže na náramku.
 - **Chytré rozložení:** motivy můžou být uprostřed, rovnoměrně po délce nebo se opakovat dokola. Řada se sama vystředí, mezery se přizpůsobí délce a šířka drží jednu volnou řadu nahoře i dole. Když se něco nevejde, web řekne, kolik korálků chybí.
 - **Náhled jako fotka:** opravdové 3D korálky, odlesky, měkké stíny a hloubka ostrosti. Dá se otáčet a přibližovat, stáhnout jako fotka.

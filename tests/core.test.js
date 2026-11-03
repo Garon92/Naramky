@@ -7,7 +7,7 @@ import {
 } from '../js/core/design.js';
 import { MOTIFS, parseMotif, placeMotif } from '../js/core/motifs.js';
 import { pixelSize } from '../js/core/pixels.js';
-import { bead, PALETTE, finishFromName, hasBead, codeOf } from '../js/core/catalog.js';
+import { bead, PALETTE, finishFromName, hasBead, codeOf, isMatte } from '../js/core/catalog.js';
 import {
   grid, generate, threadPasses, floodFill, mirrorCell, NONE, runLength, ensureCells, GENERATORS, bandSize,
 } from '../js/techniques/peyote.js';
@@ -402,8 +402,14 @@ test('mirror maps inside the grid', () => {
 test('catalogue knows the finishes and rejects unknown codes', () => {
   assert.equal(PALETTE.length >= 40, true);
   assert.equal(new Set(PALETTE.map((p) => p.code)).size, PALETTE.length);
+  assert.equal(new Set(PALETTE.map((p) => p.key)).size, PALETTE.length);
   // A mix is several colours in one bag, so it cannot stand for one colour.
   assert.deepEqual(PALETTE.filter((p) => /\bmix\b/i.test(bead(p.code).name)).map((p) => p.code), []);
+  assert.deepEqual(PALETTE.filter((p) => bead(p.code).discontinued).map((p) => p.code), []);
+  // Every colour group has a matte bead as well as shiny ones.
+  for (const family of ['white', 'yellow', 'red', 'pink', 'purple', 'blue', 'teal', 'green', 'gray', 'metal']) {
+    assert.ok(PALETTE.some((p) => p.family === family && isMatte(p.finish)), family);
+  }
   assert.equal(bead('DB0031').finish, 'metal');
   assert.equal(bead('DB0010').finish, 'opaque');
   assert.equal(finishFromName('Matte Opaque Blue', 'o'), 'matte');

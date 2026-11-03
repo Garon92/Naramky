@@ -46,6 +46,14 @@ export const FAMILIES = [
   ['gray', 'Šedé a černé'], ['metal', 'Kovové'],
 ];
 
+function luminance(hex) {
+  const lin = (i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
+}
+
 export function familyOf(hex, finish) {
   if (finish === 'metal' || finish === 'metalMatte') return 'metal';
   const { h, s, l } = rgbToHsl(hex);
@@ -82,21 +90,42 @@ for (const [code, hex, name, finish] of EXTRA) {
   byCode.set(code, { code, hex, name, finish, family: finish === 'metal' ? 'metal' : familyOf(hex, finish), extra: true });
 }
 
-// The everyday palette, each colour a real bead. Czech names are ours: Miyuki publishes none.
-export const PALETTE = [
-  ['white', 'DB0200', 'Bílá'], ['pearl', 'DB0201', 'Perleťová bílá'], ['cream', 'DB1530', 'Krémová'], ['beige', 'DB0204', 'Béžová'],
-  ['paleyellow', 'DB1855', 'Medově žlutá'], ['yellow', 'DB0721', 'Žlutá'], ['amber', 'DB1132', 'Slunečnicová'], ['orange', 'DB1133', 'Oranžová'],
-  ['coral', 'DB2113', 'Korálová'], ['red', 'DB0727', 'Červená'], ['blush', 'DB0246', 'Pudrová růžová'], ['rose', 'DB2116', 'Lososově růžová'],
-  ['pink', 'DB2036', 'Růžová'], ['hot', 'DB2035', 'Zářivě růžová'], ['raspberry', 'DB2050', 'Malinová'], ['oldrose', 'DB0625', 'Starorůžová'],
-  ['berry', 'DB1564', 'Ostružinová'], ['orchid', 'DB0247', 'Orchidejová'], ['lavender', 'DB2136', 'Levandulová'], ['lilac', 'DB0248', 'Lila'],
-  ['purple', 'DB1379', 'Fialová'], ['violet', 'DB0783', 'Matná fialová'], ['deep', 'DB1896', 'Půlnoční fialová'], ['heaven', 'DB0861', 'Nebeská modrá'], ['paleblue', 'DB1859', 'Ledově modrá'],
-  ['sky', 'DB2039', 'Nebeská'], ['azure', 'DB0725', 'Blankytná'], ['denim', 'DB2134', 'Džínová modrá'], ['royal', 'DB1110', 'Královská modrá'], ['periwinkle', 'DB1588', 'Chrpová'], ['cobalt', 'DB0726', 'Kobaltová'],
-  ['navy', 'DB2144', 'Námořnická'], ['turq', 'DB2130', 'Tyrkysová'], ['lightturq', 'DB0239', 'Světle tyrkysová'], ['aqua', 'DB2122', 'Mořská'], ['mint', 'DB1707', 'Mátová'],
-  ['teal', 'DB2133', 'Petrolejová'], ['petrol', 'DB2385', 'Tmavě petrolejová'], ['pistachio', 'DB1858', 'Pistáciová'], ['lime', 'DB2031', 'Limetková'],
-  ['green', 'DB2121', 'Trávová'], ['emerald', 'DB2126', 'Smaragdová'], ['forest', 'DB2127', 'Lesní'], ['olive', 'DB0733', 'Olivová'],
-  ['brown', 'DB2142', 'Hnědá'], ['gray', 'DB1498', 'Šedá'], ['black', 'DB0010', 'Černá'], ['matteblack', 'DB0310', 'Matná černá'],
-  ['gold', 'DB0031', 'Zlatá 24k'], ['galvgold', 'DB1832', 'Zlatavá'], ['silver', 'DB0035', 'Stříbrná'], ['palladium', 'DB0038', 'Paladium'],
-].map(([key, code, name]) => ({ key, code, name, ...pick(code) }));
+// The everyday palette, each colour a real bead, so that every kind of colour, shiny and
+// matte, is a tap away. One line per group of colours, each shown from light to dark.
+// Czech names are ours: Miyuki publishes none. Keys name the colours in pattern presets.
+const GROUPS = [
+  [['white', 'DB0200', 'Bílá'], ['pearl', 'DB0201', 'Perleťová bílá'], ['cream', 'DB1530', 'Krémová'], ['vanilla', 'DB1491', 'Vanilková'], ['beige', 'DB0204', 'Béžová'],
+    ['mattewhite', 'DB0351', 'Matná bílá'], ['mattecream', 'DB1510', 'Matná krémová'], ['mattevanilla', 'DB1511', 'Matná vanilková']],
+  [['paleyellow', 'DB1855', 'Medově žlutá'], ['yellow', 'DB0721', 'Žlutá'], ['amber', 'DB1132', 'Slunečnicová'], ['mustard', 'DB2102', 'Hořčicová'],
+    ['matteyellow', 'DB0751', 'Matná žlutá']],
+  [['peach', 'DB1492', 'Broskvová'], ['orange', 'DB1133', 'Oranžová'], ['goldlined', 'DB0042', 'Zlatý průtah'], ['topaz', 'DB0702', 'Topazová'],
+    ['matteorange', 'DB1583', 'Matná oranžová']],
+  [['coral', 'DB2113', 'Korálová'], ['red', 'DB0727', 'Červená'], ['cherry', 'DB0723', 'Třešňová'], ['burgundy', 'DB0654', 'Vínová'],
+    ['mattered', 'DB0757', 'Matná červená']],
+  [['babypink', 'DB0244', 'Světle růžová'], ['blush', 'DB0246', 'Pudrová růžová'], ['rose', 'DB2116', 'Lososově růžová'], ['pink', 'DB2036', 'Růžová'],
+    ['hot', 'DB2035', 'Zářivě růžová'], ['raspberry', 'DB2050', 'Malinová'], ['oldrose', 'DB0625', 'Starorůžová'], ['berry', 'DB1564', 'Ostružinová'],
+    ['mattepink', 'DB0780', 'Matná růžová'], ['taupe', 'DB0355', 'Matná starorůžová']],
+  [['lilac', 'DB0248', 'Lila'], ['orchid', 'DB0247', 'Orchidejová'], ['lavender', 'DB2136', 'Levandulová'], ['purple', 'DB1379', 'Fialová'],
+    ['deep', 'DB1896', 'Půlnoční fialová'], ['irispurple', 'DB1001', 'Duhově fialová'],
+    ['mattelilac', 'DB0356', 'Matná lila'], ['violet', 'DB0783', 'Matná fialová']],
+  [['paleblue', 'DB1859', 'Ledově modrá'], ['powderblue', 'DB0257', 'Pudrově modrá'], ['sky', 'DB2039', 'Nebeská'], ['azure', 'DB0725', 'Blankytná'],
+    ['denim', 'DB2134', 'Džínová modrá'], ['dustyblue', 'DB2132', 'Šedomodrá'], ['royal', 'DB1110', 'Královská modrá'], ['cobalt', 'DB0726', 'Kobaltová'],
+    ['cobaltab', 'DB0165', 'Duhově kobaltová'], ['navy', 'DB2144', 'Námořnická'], ['irisblue', 'DB0005', 'Duhově modrá'],
+    ['heaven', 'DB0861', 'Matná nebeská'], ['matteblue', 'DB0755', 'Matná blankytná'], ['periwinkle', 'DB1588', 'Matná chrpová'], ['mattenavy', 'DB0756', 'Matná kobaltová']],
+  [['lightturq', 'DB0239', 'Světle tyrkysová'], ['turq', 'DB2130', 'Tyrkysová'], ['aqua', 'DB2122', 'Mořská'], ['mint', 'DB1707', 'Mátová'],
+    ['teal', 'DB2133', 'Petrolejová'], ['petrol', 'DB2385', 'Tmavě petrolejová'],
+    ['matteturq', 'DB0759', 'Matná tyrkysová']],
+  [['pistachio', 'DB1858', 'Pistáciová'], ['sage', 'DB1496', 'Šalvějová'], ['lime', 'DB2031', 'Limetková'], ['neongreen', 'DB2040', 'Zářivě zelená'],
+    ['green', 'DB2121', 'Trávová'], ['olive', 'DB0733', 'Olivová'], ['emerald', 'DB2126', 'Smaragdová'], ['forest', 'DB2127', 'Lesní'], ['khaki', 'DB1207', 'Khaki'],
+    ['mattesage', 'DB1516', 'Matná šalvějová'], ['mattegreen', 'DB0754', 'Matná zelená']],
+  [['sienna', 'DB2109', 'Skořicová'], ['copper', 'DB0037', 'Měděný průtah'], ['brown', 'DB2142', 'Hnědá']],
+  [['crystal', 'DB0141', 'Čirá'], ['crystalab', 'DB0051', 'Čirá duhová'], ['silverlined', 'DB0041', 'Stříbrný průtah'],
+    ['gray', 'DB1498', 'Šedá'], ['darkgray', 'DB0731', 'Tmavě šedá'], ['black', 'DB0010', 'Černá'],
+    ['graylilac', 'DB0357', 'Matná holubí'], ['mattegray', 'DB1518', 'Matná šedá'], ['matteblack', 'DB0310', 'Matná černá']],
+  [['gold', 'DB0031', 'Zlatá 24k'], ['galvgold', 'DB1832', 'Zlatavá'], ['bronze', 'DB0022', 'Bronzová'], ['copperplated', 'DB0040', 'Měděná'],
+    ['silver', 'DB0035', 'Stříbrná'], ['palladium', 'DB0038', 'Paladium'], ['gunmetal', 'DB0001', 'Grafitová'], ['irisgreen', 'DB0003', 'Duhově zelená'],
+    ['mattegold', 'DB0331', 'Matná zlatá 24k'], ['mattebronze', 'DB0322', 'Matná bronzová'], ['mattesilver', 'DB1151', 'Matná stříbrná']],
+];
 
 function pick(code) {
   const b = byCode.get(code);
@@ -104,16 +133,19 @@ function pick(code) {
   return { hex: b.hex, finish: b.finish, family: b.family };
 }
 
+export const lightToDark = (a, b) => luminance(b.hex) - luminance(a.hex);
+
+export const PALETTE = GROUPS.flatMap((group) => group.map(([key, code, name]) => ({ key, code, name, ...pick(code) })).sort(lightToDark));
+
+export const isMatte = (finish) => finish === 'matte' || finish === 'metalMatte';
+
 const czByCode = new Map(PALETTE.map((p) => [p.code, p.name]));
 const byKey = new Map(PALETTE.map((p) => [p.key, p.code]));
 
-// Named colours used by the extra palette and pattern presets.
+// Stones and metals used in strung pieces.
 const KEY_ALIAS = {
   moon: 'ST-MOON', amazonite: 'ST-AMAZ', whitestone: 'ST-WHITE', hematite: 'ST-HEMA', stonepearl: 'ST-PEARL',
-  steel: 'MT-STEEL', rosemetal: 'MT-ROSE', irisblue: 'DB0005', irisgreen: 'DB0003', irispurple: 'DB1001',
-  silverlined: 'DB0041', goldlined: 'DB0042', bronze: 'DB0022', copper: 'DB0037', cobaltab: 'DB0165',
-  powderblue: 'DB0257', burgundy: 'DB0654', taupe: 'DB0355', graylilac: 'DB0357', dustyblue: 'DB2132',
-  mustard: 'DB2102', sage: 'DB1496', matteblue: 'DB0755', mattenavy: 'DB0756',
+  steel: 'MT-STEEL', rosemetal: 'MT-ROSE',
 };
 
 export const codeOf = (key) => byKey.get(key) ?? KEY_ALIAS[key] ?? key;
