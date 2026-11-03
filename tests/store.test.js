@@ -9,7 +9,10 @@ globalThis.localStorage = {
 };
 globalThis.location = { origin: 'https://example.test', pathname: '/Naramky/' };
 
-const { store, saveCurrent, savedList, deleteSaved, duplicateSaved, shareLink, restoreSession } = await import('../js/ui/store.js');
+const {
+  store, saveCurrent, savedList, deleteSaved, deleteAllSaved, duplicateSaved, shareLink, restoreSession,
+  draftList, openDraft, saveDraft, deleteDraft, DRAFT_LIMIT,
+} = await import('../js/ui/store.js');
 const { patternById } = await import('../js/core/presets.js');
 const { decodeDesign, encodeDesign, applyColorway } = await import('../js/core/design.js');
 const { decodeShare } = await import('../js/core/link.js');
@@ -49,14 +52,13 @@ test('saving again updates the same entry, also after a rename', () => {
   assert.equal(store.isDirty(), false);
 });
 
-test('opening something else keeps unsaved work', () => {
+test('opening something else keeps unsaved work as a draft, not as a saved design', () => {
   store.design.slots[1].code = 'DB0721';
   store.design.note = 'Rozdělané';
-  const kept = store.open(patternById('zigzag').make());
-  assert.equal(kept, '4 srdíčka');
-  const list = savedList();
-  assert.equal(list.length, 1);
-  assert.equal(decodeDesign(list[0].data).note, 'Rozdělané');
+  assert.equal(store.open(patternById('zigzag').make()), true);
+  assert.equal(savedList().length, 0, 'only the Save button fills the saved designs');
+  const [draft] = draftList();
+  assert.equal(decodeDesign(draft.data).note, 'Rozdělané');
   assert.equal(store.design.name, 'Šitý zig-zag');
   assert.equal(store.savedId, null);
 });
@@ -64,13 +66,35 @@ test('opening something else keeps unsaved work', () => {
 test('nothing piles up when only browsing patterns and colour combinations', () => {
   const pattern = patternById('srdce');
   applyColorway(store.design, pattern.colorways[5]);
-  assert.equal(store.open(patternById('zigzag').make()), null);
-  assert.equal(savedList().length, 0);
+  assert.equal(store.open(patternById('zigzag').make()), false);
+  assert.equal(draftList().length, 0);
   // Untouched, then a real change on top of a combination: this one is kept.
   store.load(hearts());
   applyColorway(store.design, pattern.colorways[5]);
   store.design.slots[1].code = 'DB0727';
-  assert.equal(store.open(patternById('zigzag').make()), '4 srdíčka');
+  assert.equal(store.open(patternById('zigzag').make()), true);
+  assert.equal(draftList().length, 1);
+});
+
+test('drafts stay few, however much gets tried', () => {
+  for (let i = 0; i < DRAFT_LIMIT + 4; i++) {
+    store.load(hearts());
+    store.design.note = `Pokus ${i}`;
+    store.open(patternById('zigzag').make());
+  }
+  const drafts = draftList();
+  assert.equal(drafts.length, DRAFT_LIMIT);
+  assert.equal(decodeDesign(drafts[0].data).note, `Pokus ${DRAFT_LIMIT + 3}`, 'the newest stay');
+  assert.equal(savedList().length, 0);
+});
+
+test('the same work is not kept twice', () => {
+  for (let i = 0; i < 3; i++) {
+    store.load(hearts());
+    store.design.note = 'Pořád to samé';
+    store.open(patternById('zigzag').make());
+  }
+  assert.equal(draftList().length, 1);
 });
 
 test('opening the design already being edited keeps the edits on screen', () => {
@@ -78,19 +102,69 @@ test('opening the design already being edited keeps the edits on screen', () => 
   const id = store.savedId;
   store.design.slots[1].code = 'DB0721';
   const stale = decodeDesign(savedList()[0].data);
-  assert.equal(store.open(stale, { savedId: id }), null);
+  assert.equal(store.open(stale, { savedId: id }), false);
   assert.equal(store.design.slots[1].code, 'DB0721');
 });
 
-test('edits to a saved design go back to its own entry when leaving it', () => {
+test('leaving a saved design with changes does not touch what was saved', () => {
   saveCurrent();
   const id = store.savedId;
+  const original = savedList()[0].data;
   store.design.slots[1].code = 'DB0721';
   store.open(patternById('zigzag').make());
+  assert.equal(savedList()[0].data, original);
+  const [draft] = draftList();
+  assert.equal(draft.savedId, id);
+
+  // Carrying on with the draft brings the changes back, and saving updates the original.
+  openDraft(draft.id);
+  assert.equal(draftList().length, 0);
+  assert.equal(store.design.slots[1].code, 'DB0721');
+  assert.equal(store.savedId, id);
+  assert.equal(store.isDirty(), true);
+  saveCurrent();
   const list = savedList();
   assert.equal(list.length, 1);
-  assert.equal(list[0].id, id);
   assert.equal(decodeDesign(list[0].data).slots[1].code, 'DB0721');
+  assert.equal(store.isDirty(), false);
+});
+
+test('a draft of the saved design being edited still opens', () => {
+  saveCurrent();
+  store.design.slots[1].code = 'DB0721';
+  store.open(patternById('zigzag').make());
+  const { id, savedId } = draftList()[0];
+  store.open(decodeDesign(savedList()[0].data), { savedId });
+  assert.equal(store.design.slots[1].code === 'DB0721', false);
+  openDraft(id);
+  assert.equal(store.design.slots[1].code, 'DB0721');
+});
+
+test('a draft can be saved or thrown away from the list', () => {
+  store.design.note = 'K uložení';
+  store.open(patternById('zigzag').make());
+  store.load(hearts());
+  store.design.note = 'K zahození';
+  store.open(patternById('zigzag').make());
+  const [drop, keep] = draftList();
+  deleteDraft(drop.id);
+  assert.equal(saveDraft(keep.id), '4 srdíčka');
+  assert.equal(draftList().length, 0);
+  assert.equal(decodeDesign(savedList()[0].data).note, 'K uložení');
+  assert.equal(saveDraft('neni'), null);
+  assert.equal(openDraft('neni'), false);
+});
+
+test('all saved designs can go at once, and the one on screen stays', () => {
+  saveCurrent();
+  store.design.name = 'Druhý';
+  store.savedId = null;
+  saveCurrent();
+  assert.equal(savedList().length, 2);
+  deleteAllSaved();
+  assert.equal(savedList().length, 0);
+  assert.equal(store.savedId, null);
+  assert.equal(store.design.name, 'Druhý');
 });
 
 test('copying and deleting saved designs', () => {

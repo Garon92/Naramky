@@ -80,6 +80,7 @@ export class Designer {
     this.tip = el('div', { class: 'swatch-tip' });
     this.labelBox = el('div', { style: { marginTop: '12px' } });
     this.formBox = el('div', { style: { display: 'grid', gap: '10px' } });
+    this.saveButton = el('button', { class: 'btn', onclick: () => this._save() });
     this.composer = new Composer({
       selectSlot: (slot) => this._selectTile(slot),
       openTab: (id) => this._openSideTab(id),
@@ -112,7 +113,7 @@ export class Designer {
       el('section', { class: 'actions' },
         el('button', { class: 'btn primary', onclick: () => this._share() }, icon('send'), 'Sdílet návrh'),
         el('div', { class: 'actions-row' },
-          el('button', { class: 'btn', onclick: () => this._save() }, icon('save'), 'Uložit'),
+          this.saveButton,
           el('button', { class: 'btn', onclick: () => this._downloadPhoto() }, icon('photo'), 'Fotka'),
         ),
       ),
@@ -135,6 +136,7 @@ export class Designer {
     const d = store.design;
     if (!d) return;
     this._renderTitle();
+    this._renderSaveState();
     if (kind === 'text') return;
     this._renderUndo();
     if (kind === 'load' && this.composer.figurePart && !this.composer.ids.length) this.sideTab = 'shape';
@@ -156,6 +158,13 @@ export class Designer {
     this._renderColorways();
     this._renderLower(kind);
     if (this.photo.stage) this.photo.show(d, { reframe: kind === 'load' || kind === 'geometry' });
+  }
+
+  // Says plainly whether what is on screen is what is in Moje návrhy.
+  _renderSaveState() {
+    const saved = !!store.savedId && !store.isDirty();
+    this.saveButton.replaceChildren(icon('save'), saved ? 'Uloženo' : 'Uložit');
+    this.saveButton.title = saved ? 'Tenhle návrh je uložený v Moje návrhy' : 'Uloží návrh do Moje návrhy';
   }
 
   _renderSideTabs() {
@@ -762,6 +771,7 @@ export class Designer {
       this._renderForm();
       this._renderTitle();
     }
+    this._renderSaveState();
     toast(`Uloženo do Moje návrhy: ${name}`);
   }
 

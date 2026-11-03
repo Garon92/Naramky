@@ -343,7 +343,7 @@ export class Composer {
     const lines = [];
     if ((p.layout ?? 'center') === 'center') {
       lines.push(`Od kraje zbývá ${czNumber((placed.margin * D) / 10)} cm na každé straně.`);
-      if (placed.gap < (p.gap ?? 2)) lines.push(`Mezery jsem zmenšil na ${placed.gap}, jinak by se motivy nevešly.`);
+      if (placed.gap < (p.gap ?? 2)) lines.push(`Mezery se zmenšily na ${placed.gap}, jinak by se motivy nevešly.`);
     } else {
       if (placed.times > 1) lines.push(`Řada se opakuje ${placed.times}×.`);
       lines.push(`Mezery vycházejí na ${beads(placed.gap)}.`);

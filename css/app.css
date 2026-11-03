@@ -182,6 +182,8 @@ a { color: inherit; }
 .side.drawing .actions { display: none; }
 .member-hint { align-self: center; margin-left: 2px; }
 .start-blank { margin-top: 12px; }
+.mine-clear { margin-top: 14px; text-align: right; }
+.mine-clear .linkish { color: var(--muted); font-size: 13.5px; font-weight: 500; }
 
 /* Colour slots */
 .slots { display: flex; flex-wrap: wrap; gap: 8px; }

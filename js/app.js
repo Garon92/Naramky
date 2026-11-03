@@ -1,4 +1,4 @@
-import { store, restoreSession } from './ui/store.js';
+import { store, restoreSession, DRAFT_NOTE } from './ui/store.js';
 import { decodeShare } from './core/link.js';
 import { toast } from './ui/util.js';
 import { renderGallery, renderMine } from './ui/gallery.js';
@@ -20,8 +20,7 @@ function leaveDesigner() {
 }
 
 function openDesign(design, options) {
-  const kept = store.open(design, options);
-  if (kept) toast(`Rozpracovaný návrh je v Moje návrhy jako „${kept}“.`);
+  if (store.open(design, options)) toast(DRAFT_NOTE, 4000);
   location.hash = '#/';
 }
 
@@ -31,7 +30,7 @@ function route() {
     try {
       const design = decodeShare(hash.slice(4));
       const kept = store.open(design);
-      toast(kept ? `Otevřený návrh: ${design.name}. Ten tvůj je v Moje návrhy jako „${kept}“.` : `Otevřený návrh: ${design.name}`, kept ? 5000 : undefined);
+      toast(kept ? `Otevřený návrh: ${design.name}. ${DRAFT_NOTE}` : `Otevřený návrh: ${design.name}`, kept ? 5000 : undefined);
     } catch (err) {
       console.warn(err);
       toast('Tenhle odkaz na návrh nejde přečíst.');

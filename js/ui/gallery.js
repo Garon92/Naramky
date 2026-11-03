@@ -3,7 +3,10 @@ import { PATTERNS, COLLECTIONS, patternById } from '../core/presets.js';
 import { decodeDesign } from '../core/design.js';
 import { flatColor, el, icon, plural, toast, copyText } from './util.js';
 import { thumbImage, forgetThumb } from './thumbs.js';
-import { store, savedList, deleteSaved, duplicateSaved, linkFromData, NO_LINK } from './store.js';
+import {
+  store, savedList, deleteSaved, deleteAllSaved, duplicateSaved, linkFromData, NO_LINK,
+  draftList, openDraft, saveDraft, deleteDraft, DRAFT_NOTE, DRAFT_LIMIT,
+} from './store.js';
 
 function colorDots(design) {
   const seen = [];
@@ -64,49 +67,73 @@ export function renderGallery(root, { openDesign }) {
 }
 
 export function renderMine(root, { openDesign }) {
+  const card = (item, keyBase, note, open, actions) => {
+    let design;
+    try {
+      design = decodeDesign(item.data);
+    } catch {
+      return null; // saved by an older version
+    }
+    return el('div', { class: 'card' },
+      el('button', { class: 'card-open', onclick: open, 'aria-label': `Otevřít ${item.name}` },
+        thumbImage(`${keyBase}:${item.id}:${item.at}`, () => decodeDesign(item.data)),
+        el('span', { class: 'meta' }, el('span', {}, el('b', {}, item.name), el('small', {}, note)), colorDots(design))),
+      el('div', { class: 'card-actions' }, actions));
+  };
+  const day = (item) => new Date(item.at).toLocaleDateString('cs-CZ');
   const draw = () => {
     const list = savedList();
-    const body = list.length
-      ? el('div', { class: 'grid' }, list.map((item) => {
-        let design;
-        try {
-          design = decodeDesign(item.data);
-        } catch {
-          return null;
+    const drafts = draftList();
+    const saved = list.map((item) => card(item, 'mine', day(item), () => openDesign(decodeDesign(item.data), { savedId: item.id }), [
+      el('button', { class: 'btn small', onclick: async () => {
+        const link = linkFromData(item.data);
+        if (!link) toast(NO_LINK);
+        else toast((await copyText(link)) ? 'Odkaz je zkopírovaný.' : 'Kopírování se nepovedlo.');
+      } }, icon('link'), 'Odkaz'),
+      el('button', { class: 'btn small', title: 'Vytvoří kopii, kterou můžeš upravit zvlášť', onclick: () => {
+        duplicateSaved(item.id);
+        draw();
+      } }, 'Kopie'),
+      el('button', { class: 'btn small ghost', 'aria-label': `Smazat ${item.name}`, onclick: () => {
+        if (confirm(`Opravdu smazat návrh „${item.name}“?`)) {
+          deleteSaved(item.id);
+          forgetThumb(`mine:${item.id}:${item.at}`);
+          draw();
         }
-        const key = `mine:${item.id}:${item.at}`;
-        return el('div', { class: 'card' },
-          el('button', { class: 'card-open', onclick: () => openDesign(decodeDesign(item.data), { savedId: item.id }), 'aria-label': `Otevřít ${item.name}` },
-            thumbImage(key, () => decodeDesign(item.data)),
-            el('span', { class: 'meta' }, el('span', {}, el('b', {}, item.name), el('small', {}, new Date(item.at).toLocaleDateString('cs-CZ'))), colorDots(design)),
-          ),
-          el('div', { class: 'card-actions' },
-            el('button', { class: 'btn small', onclick: async () => {
-              const link = linkFromData(item.data);
-              if (!link) toast(NO_LINK);
-              else toast((await copyText(link)) ? 'Odkaz je zkopírovaný.' : 'Kopírování se nepovedlo.');
-            } }, icon('link'), 'Odkaz'),
-            el('button', { class: 'btn small', title: 'Vytvoří kopii, kterou můžeš upravit zvlášť', onclick: () => {
-              duplicateSaved(item.id);
-              draw();
-            } }, 'Kopie'),
-            el('button', { class: 'btn small ghost', 'aria-label': `Smazat ${item.name}`, onclick: () => {
-              if (confirm(`Opravdu smazat návrh „${item.name}“?`)) {
-                deleteSaved(item.id);
-                forgetThumb(key);
-                draw();
-              }
-            } }, 'Smazat'),
-          ),
-        );
-      }))
-      : el('div', { class: 'empty' }, 'Zatím tu nic není. V návrhu klikni na Uložit a objeví se tady.');
+      } }, 'Smazat'),
+    ]));
+    const unsaved = drafts.map((item) => card(item, 'draft', item.savedId ? `Neuložené změny, ${day(item)}` : day(item), () => {
+      if (openDraft(item.id)) toast(DRAFT_NOTE, 4000);
+      location.hash = '#/';
+    }, [
+      el('button', { class: 'btn small', onclick: () => {
+        const name = saveDraft(item.id);
+        toast(name ? `Uloženo do Moje návrhy: ${name}` : 'Uložení se nepovedlo.');
+        draw();
+      } }, icon('save'), 'Uložit'),
+      el('button', { class: 'btn small ghost', 'aria-label': `Zahodit ${item.name}`, onclick: () => {
+        deleteDraft(item.id);
+        forgetThumb(`draft:${item.id}:${item.at}`);
+        draw();
+      } }, 'Zahodit'),
+    ]));
     root.replaceChildren(el('div', { class: 'page' },
       el('header', { class: 'page-head' },
-        el('div', {}, el('h1', {}, 'Moje návrhy'), el('p', {}, 'Ukládají se jen v tomhle prohlížeči, ne na internetu. Na jiný telefon nebo počítač si návrh přeneseš odkazem.')),
+        el('div', {}, el('h1', {}, 'Moje návrhy'), el('p', {}, 'Jsou tu jen návrhy uložené tlačítkem Uložit. Drží se v tomhle prohlížeči, ne na internetu. Na jiný telefon nebo počítač se přenesou odkazem.')),
         store.design ? el('a', { class: 'btn', href: '#/' }, 'Zpět k návrhu') : null,
       ),
-      body,
+      list.length
+        ? el('div', { class: 'grid' }, saved)
+        : el('div', { class: 'empty' }, 'Zatím tu nic není. V návrhu klikni na Uložit a objeví se tady.'),
+      list.length > 1 ? el('p', { class: 'mine-clear' }, el('button', { class: 'linkish', onclick: () => {
+        if (confirm(`Opravdu smazat všech ${list.length} uložených návrhů? Vrátit se to nedá.`)) {
+          deleteAllSaved();
+          draw();
+        }
+      } }, 'Smazat všechny uložené')) : null,
+      drafts.length ? el('h2', { class: 'group-title' }, 'Rozpracované', el('small', {}, String(drafts.length))) : null,
+      drafts.length ? el('p', { class: 'hint' }, `Neuložené změny z návrhů, od kterých se přešlo jinam. Aby se neztratily, drží se tu posledních ${DRAFT_LIMIT}, starší samy zmizí.`) : null,
+      drafts.length ? el('div', { class: 'grid' }, unsaved) : null,
     ));
   };
   draw();

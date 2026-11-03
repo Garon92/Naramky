@@ -8,6 +8,8 @@ import { safeStorage } from './util.js';
 const CURRENT = 'naramky:current';
 const CURRENT_META = 'naramky:current-meta';
 const SAVED = 'naramky:saved';
+const DRAFTS = 'naramky:drafts';
+const DRAFT_LIMIT = 6;
 const HISTORY_LIMIT = 60;
 
 const listeners = new Set();
@@ -46,10 +48,10 @@ export const store = {
     this.notify('load');
   },
 
-  // Replaces the design without losing work. Returns the name it was kept under.
+  // Replaces the design without losing work. Says whether unsaved changes became a draft.
   open(design, { savedId = null } = {}) {
-    if (savedId && savedId === this.savedId) return null; // already being edited
-    const kept = keepUnsaved();
+    if (savedId && savedId === this.savedId) return false; // already being edited
+    const kept = keepDraft();
     this.load(design, { savedId });
     return kept;
   },
@@ -145,15 +147,18 @@ function uniqueName(list, name, ignoreId) {
   return `${name} ${i}`;
 }
 
-// Saves into the design's own entry, or a new one. Two designs never share an entry,
-// even when they carry the same name.
-export function saveCurrent() {
+// Writes a design into its own entry, or a new one. Two designs never share an entry, even
+// when they carry the same name.
+function writeEntry(d, entryId) {
   const list = savedList();
-  const d = store.design;
-  const existing = list.find((x) => x.id === store.savedId);
+  const existing = list.find((x) => x.id === entryId);
   d.name = uniqueName(list, d.name, existing?.id);
   const entry = { id: existing?.id ?? newId(), name: d.name, data: encodeDesign(d), at: Date.now() };
-  const ok = writeList([entry, ...list.filter((x) => x.id !== entry.id)]);
+  return { ok: writeList([entry, ...list.filter((x) => x.id !== entry.id)]), entry };
+}
+
+export function saveCurrent() {
+  const { ok, entry } = writeEntry(store.design, store.savedId);
   if (ok) {
     store.savedId = entry.id;
     store.baseline = entry.data;
@@ -172,13 +177,6 @@ function isUntouchedPreset(d) {
   return encodeDesign(fresh) === encodeDesign(d);
 }
 
-function keepUnsaved() {
-  const d = store.design;
-  if (!store.isDirty() || (!store.savedId && isUntouchedPreset(d))) return null;
-  const { ok, name } = saveCurrent();
-  return ok ? name : null;
-}
-
 export function duplicateSaved(id) {
   const list = savedList();
   const item = list.find((x) => x.id === id);
@@ -192,3 +190,55 @@ export function deleteSaved(id) {
   writeList(savedList().filter((x) => x.id !== id));
   if (store.savedId === id) store.savedId = null;
 }
+
+export function deleteAllSaved() {
+  writeList([]);
+  store.savedId = null;
+}
+
+// --- Drafts ---
+// Saved designs are only what someone chose to save. Changes left behind by opening something
+// else wait here instead, so trying things out fills nothing up: the oldest simply drop off.
+
+export const DRAFT_NOTE = 'Neuložené změny najdeš v Moje návrhy, v části Rozpracované.';
+export { DRAFT_LIMIT };
+
+export function draftList() {
+  try {
+    const list = JSON.parse(safeStorage.get(DRAFTS) ?? '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+const writeDrafts = (list) => safeStorage.set(DRAFTS, JSON.stringify(list));
+
+function keepDraft() {
+  const d = store.design;
+  if (!d || !store.isDirty() || (!store.savedId && isUntouchedPreset(d))) return false;
+  const data = encodeDesign(d);
+  const entry = { id: newId(), name: d.name, data, savedId: store.savedId, base: store.baseline, at: Date.now() };
+  return writeDrafts([entry, ...draftList().filter((x) => x.data !== data)].slice(0, DRAFT_LIMIT));
+}
+
+// Carries on with a draft. It knows the saved design it came from, so saving updates that one.
+export function openDraft(id) {
+  const item = draftList().find((x) => x.id === id);
+  if (!item) return false;
+  const kept = keepDraft();
+  store.load(decodeDesign(item.data), { savedId: item.savedId, baseline: item.base });
+  writeDrafts(draftList().filter((x) => x.id !== id));
+  return kept;
+}
+
+export function saveDraft(id) {
+  const drafts = draftList();
+  const item = drafts.find((x) => x.id === id);
+  if (!item) return null;
+  const { ok, entry } = writeEntry(decodeDesign(item.data), item.savedId);
+  if (ok) writeDrafts(drafts.filter((x) => x.id !== id));
+  return ok ? entry.name : null;
+}
+
+export const deleteDraft = (id) => writeDrafts(draftList().filter((x) => x.id !== id));
