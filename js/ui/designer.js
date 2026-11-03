@@ -15,6 +15,15 @@ import { SURFACE_LIST } from '../engine/surfaces.js';
 import { onThemeChange } from './theme.js';
 
 const STAGE_SPLIT = 'naramky:stage-split';
+
+// The clipboard only takes PNG.
+async function toPng(blob) {
+  const bitmap = await createImageBitmap(blob);
+  const canvas = el('canvas', { width: bitmap.width, height: bitmap.height });
+  canvas.getContext('2d').drawImage(bitmap, 0, 0);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
 const METALS = [
   ['steel', 'Chirurgická ocel'], ['rose', 'Růžové zlato'], ['gold', 'Zlatá'], ['dark', 'Tmavá'], ['none', 'Bez spony'],
 ];
@@ -792,6 +801,10 @@ export class Designer {
     const fileName = `${slug(d.name)}.jpg`;
     const canShareFiles = !!navigator.canShare?.({ files: [new File([''], fileName, { type: 'image/jpeg' })] });
     const copy = async (text, done) => toast((await copyText(text)) ? done : 'Kopírování se nepovedlo.');
+    // On a computer the photo travels through the clipboard, for example into WhatsApp Web.
+    const copyPhoto = navigator.maxTouchPoints === 0 && !!navigator.clipboard?.write && typeof ClipboardItem !== 'undefined'
+      ? el('button', { class: 'btn', disabled: true }, 'Připravuju fotku…')
+      : null;
     let main;
     if (canShareFiles) {
       // The share sheet needs a fresh tap, so the photo is made before that tap.
@@ -804,34 +817,43 @@ export class Designer {
     const dialog = el('dialog', {},
       el('h2', {}, 'Sdílet návrh'),
       el('p', {}, 'V odkazu je celý návrh, takže ho kdokoli otevře a uvidí stejný náramek i s návodem a seznamem korálků. Nic se tím nikam neodesílá ani neobjednává, odkaz pošli, komu chceš, třeba přes WhatsApp.'),
+      el('p', { class: 'hint' }, 'Obrázek v náhledu odkazu je ve WhatsAppu vždycky stejný. Tenhle náramek ukáže až přiložená fotka nebo otevřený odkaz.'),
       el('textarea', { class: 'input share-text', readonly: true, 'aria-label': 'Text zprávy' }, message),
       el('div', { class: 'dialog-actions' },
         el('button', { class: 'btn', onclick: () => dialog.close() }, 'Zavřít'),
         el('button', { class: 'btn', onclick: () => copy(link, 'Odkaz je zkopírovaný.') }, icon('link'), 'Jen odkaz'),
+        copyPhoto,
         main,
       ),
     );
     dialog.addEventListener('close', () => dialog.remove());
     document.body.append(dialog);
     dialog.showModal();
-    if (canShareFiles) {
-      const fallback = () => {
-        main.disabled = false;
-        main.replaceChildren(icon('send'), 'Sdílet');
-        main.onclick = () => this._shareNative({ title: d.name, text: message }, dialog);
-      };
-      // Let the dialog paint first, because rendering the photo blocks for a moment.
-      setTimeout(async () => {
-        const blob = await this.photo.photoBlob(1600, 32).catch(() => null);
-        if (!blob) {
-          fallback();
-          return;
-        }
-        const file = new File([blob], fileName, { type: 'image/jpeg' });
-        main.disabled = false;
-        main.replaceChildren(icon('send'), 'Sdílet s fotkou');
-        main.onclick = () => this._shareNative({ title: d.name, text: message, files: [file] }, dialog);
-      }, 60);
+    if (!canShareFiles && !copyPhoto) return;
+    // The share sheet and the clipboard need a fresh tap, so the photo is made before that tap.
+    // Let the dialog paint first, because rendering the photo blocks for a moment.
+    setTimeout(async () => {
+      const blob = await this.photo.photoBlob(1600, 32).catch(() => null);
+      if (copyPhoto) {
+        copyPhoto.disabled = !blob;
+        copyPhoto.replaceChildren(icon('photo'), blob ? 'Kopírovat fotku' : 'Fotka se nepovedla');
+        copyPhoto.onclick = () => this._copyPhoto(blob);
+      }
+      if (!canShareFiles) return;
+      main.disabled = false;
+      main.replaceChildren(icon('send'), blob ? 'Sdílet s fotkou' : 'Sdílet');
+      const files = blob ? [new File([blob], fileName, { type: 'image/jpeg' })] : undefined;
+      main.onclick = () => this._shareNative({ title: d.name, text: message, files }, dialog);
+    }, 60);
+  }
+
+  async _copyPhoto(blob) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': toPng(blob) })]);
+      toast('Fotka je zkopírovaná. Vlož ji do WhatsAppu a přidej k ní zprávu.', 4000);
+    } catch (err) {
+      console.warn(err);
+      toast('Kopírování se nepovedlo. Fotku si můžeš stáhnout tlačítkem Fotka.', 4000);
     }
   }
 
