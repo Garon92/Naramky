@@ -39,9 +39,11 @@ export class PhotoHost {
     }
     new ResizeObserver(() => this._resize()).observe(this.wrap);
     this._resize();
-    // Plain wheel keeps scrolling the page. Ctrl or pinch zooms the photo.
+    // Plain wheel keeps scrolling the page, if it has anywhere to go. Otherwise it zooms the
+    // photo, as Ctrl or pinch always does.
     this.canvas.addEventListener('wheel', (e) => {
-      if (!e.ctrlKey && !e.metaKey) e.stopImmediatePropagation();
+      const pageScrolls = document.documentElement.scrollHeight > window.innerHeight;
+      if (pageScrolls && !e.ctrlKey && !e.metaKey) e.stopImmediatePropagation();
     }, { capture: true });
     let down = null;
     this.canvas.addEventListener('pointerdown', (e) => {

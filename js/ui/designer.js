@@ -4,7 +4,7 @@ import { store, saveCurrent, shareLink, NO_LINK } from './store.js';
 import { PhotoHost, VIEWS } from './photo.js';
 import { ChartEditor } from './chart.js';
 import { renderGuide } from './guide.js';
-import { el, icon, beadSwatch, flatColor, colorTitle, displayCode, toast, copyText, saveFile, czNumber, plural } from './util.js';
+import { el, icon, beadSwatch, flatColor, colorTitle, displayCode, toast, copyText, saveFile, czNumber, plural, safeStorage } from './util.js';
 import { PALETTE, FAMILIES, allBeads, extraBeads, czName, finishLabel, bead, codeOf } from '../core/catalog.js';
 import { TECHNIQUES, paintablePart, applyWrist, applyMotifSettings, groupsOf, groupOfSlot, setGroupColor, applyColorway, setBeadSlot, extraSlotFor, pruneExtras, resetBead, removeExtraColor, EXTRA_GROUP } from '../core/design.js';
 import { patternById } from '../core/presets.js';
@@ -13,6 +13,7 @@ import { SHAPES } from '../core/shapes.js';
 import { SURFACE_LIST } from '../engine/surfaces.js';
 import { onThemeChange } from './theme.js';
 
+const STAGE_SPLIT = 'naramky:stage-split';
 const METALS = [
   ['steel', 'Chirurgická ocel'], ['rose', 'Růžové zlato'], ['gold', 'Zlatá'], ['dark', 'Tmavá'], ['none', 'Bez spony'],
 ];
@@ -58,15 +59,18 @@ export class Designer {
     );
     this.side = el('aside', { class: 'side' });
     this.lower = el('section', { class: 'lower' });
-    this.root.replaceChildren(el('div', { class: 'designer' }, this.stageWrap, this.side, this.lower));
+    const layout = el('div', { class: 'designer' }, this.stageWrap, this.side, this.lower);
+    layout.append(this._stageResizer(layout));
+    this.root.replaceChildren(layout);
 
     this.slotsBox = el('div', { class: 'slots', role: 'radiogroup', 'aria-label': 'Co barvím' });
     this.memberBox = el('div', { class: 'members', role: 'radiogroup', 'aria-label': 'Všechny najednou nebo každý zvlášť' });
     this.waysBox = el('div');
     this.hintEl = el('p', { class: 'hint', style: { margin: '8px 0 10px' } });
+    this.colorHead = el('div', { class: 'color-head' });
     this.paletteBox = el('div', { class: 'palette' });
+    this.catalogGrid = el('div', { class: 'palette catalog-grid', hidden: true });
     this.tip = el('div', { class: 'swatch-tip' });
-    this.catalogBox = el('div');
     this.labelBox = el('div', { style: { marginTop: '12px' } });
     this.formBox = el('div', { style: { display: 'grid', gap: '10px' } });
     this.side.append(
@@ -75,9 +79,9 @@ export class Designer {
         this.slotsBox,
         this.memberBox,
         this.hintEl,
+        this.colorHead,
         this.paletteBox,
-        this.tip,
-        this.catalogBox,
+        this.catalogGrid,
         this.labelBox,
       ),
       this.waysBox,
@@ -129,6 +133,30 @@ export class Designer {
     this._renderColorways();
     this._renderLower(kind);
     if (this.photo.stage) this.photo.show(d, { reframe: kind === 'load' || kind === 'geometry' });
+  }
+
+  // On a computer the photo and the panels below share the window, and the split can move.
+  _stageResizer(layout) {
+    const saved = safeStorage.get(STAGE_SPLIT);
+    if (saved) layout.style.setProperty('--stage-h', saved);
+    const set = (percent) => {
+      const value = `${Math.max(30, Math.min(80, percent)).toFixed(1)}%`;
+      layout.style.setProperty('--stage-h', value);
+      safeStorage.set(STAGE_SPLIT, value);
+    };
+    return el('div', {
+      class: 'stage-resize', role: 'separator', 'aria-orientation': 'horizontal', 'aria-label': 'Výška náhledu', title: 'Tažením změníš výšku náhledu', tabindex: 0,
+      onpointerdown: (e) => e.currentTarget.setPointerCapture(e.pointerId),
+      onpointermove: (e) => {
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) set(((e.clientY - layout.getBoundingClientRect().top) / layout.offsetHeight) * 100);
+      },
+      onkeydown: (e) => {
+        const step = { ArrowUp: -4, ArrowDown: 4 }[e.key];
+        if (!step) return;
+        e.preventDefault();
+        set((this.stageWrap.offsetHeight / layout.offsetHeight) * 100 + step);
+      },
+    });
   }
 
   _renderBars() {
@@ -401,41 +429,47 @@ export class Designer {
     if (this.catalogOpen) this._renderCatalogGrid();
   }
 
+  // The favourites and the whole catalogue take turns in one place. While the catalogue
+  // scrolls, its tools and the name of the colour stay in view.
   _renderCatalog() {
-    const box = this.catalogBox;
-    const toggle = el('button', { class: 'linkish', onclick: () => {
-      this.catalogOpen = !this.catalogOpen;
-      this._renderCatalog();
-    } }, this.catalogOpen ? 'Skrýt celý katalog' : `Celý katalog Delica, ${czNumber(allBeads().length, 0)} barev`);
-    if (!this.catalogOpen) {
-      box.replaceChildren(el('div', { style: { marginTop: '8px' } }, toggle));
-      return;
-    }
-    this.catalogGrid = el('div', { class: 'palette catalog-grid' });
-    box.replaceChildren(
-      el('div', { style: { marginTop: '8px' } }, toggle),
-      el('div', { class: 'catalog-tools' },
+    const tab = (open, label) => el('button', {
+      class: `chip${this.catalogOpen === open ? ' on' : ''}`, 'aria-pressed': String(this.catalogOpen === open),
+      onclick: () => {
+        this.catalogOpen = open;
+        this._renderCatalog();
+      },
+    }, label);
+    const family = (id, label, code) => el('button', {
+      class: `family${this.family === id ? ' on' : ''}`, 'aria-pressed': String(this.family === id), 'aria-label': label, title: label,
+      style: { '--c': flatColor(code) },
+      onclick: () => {
+        this.family = id;
+        this._renderCatalog();
+      },
+      onpointerenter: () => this.tip.replaceChildren(el('b', {}, label)),
+      onpointerleave: () => this._showTip(),
+    });
+    this.paletteBox.hidden = this.catalogOpen;
+    this.catalogGrid.hidden = !this.catalogOpen;
+    this.colorHead.classList.toggle('open', this.catalogOpen);
+    this.colorHead.replaceChildren(
+      el('div', { class: 'chips' }, tab(false, 'Oblíbené'), tab(true, `Celý katalog, ${czNumber(allBeads().length, 0)} barev`)),
+      ...(this.catalogOpen ? [
         el('input', { class: 'input', type: 'search', placeholder: 'Hledat kód, třeba 0726', 'aria-label': 'Hledat podle kódu', value: this.query, oninput: (e) => {
           this.query = e.target.value.trim();
           this._renderCatalogGrid();
         } }),
-        el('div', { class: 'chips' }, FAMILIES.map(([id, label]) => el('button', {
-          class: `chip${this.family === id ? ' on' : ''}`, onclick: () => {
-            this.family = id;
-            this._renderCatalog();
-          },
-        }, label)), el('button', { class: `chip${this.family === 'extra' ? ' on' : ''}`, onclick: () => {
-          this.family = 'extra';
-          this._renderCatalog();
-        } }, 'Kameny a kov')),
-      ),
-      this.catalogGrid,
+        el('div', { class: 'families' },
+          FAMILIES.map(([id, label]) => family(id, label, allBeads().find((b) => b.family === id && PALETTE.some((p) => p.code === b.code)).code)),
+          family('extra', 'Kameny a kov', extraBeads()[0].code)),
+      ] : []),
+      this.tip,
     );
-    this._renderCatalogGrid();
+    if (this.catalogOpen) this._renderCatalogGrid();
   }
 
   _renderCatalogGrid() {
-    if (!this.catalogGrid || !this._swatch) return;
+    if (!this._swatch) return;
     const q = this.query.replace(/\D/g, '');
     let items;
     if (q) items = allBeads().filter((b) => b.code.includes(q));
