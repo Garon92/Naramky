@@ -398,6 +398,14 @@ export class Designer {
     this.labelBox.replaceChildren(el('label', { class: 'field' }, 'Jméno téhle části, třeba komu srdíčko patří', input));
   }
 
+  // Names of catalogue colours often say the finish already.
+  _hoverTip(code) {
+    const name = czName(code);
+    const finish = finishLabel(bead(code).finish);
+    const details = [displayCode(code), name.includes(finish) ? null : finish].filter(Boolean);
+    this.tip.replaceChildren(el('b', {}, name), details.length ? ` · ${details.join(' · ')}` : '');
+  }
+
   _showTip() {
     const d = store.design;
     if (this.tapMode === 'paint') {
@@ -475,7 +483,7 @@ export class Designer {
     const swatch = (code) => el('button', {
       class: `swatch${code === current ? ' on' : ''}`, title: colorTitle(code), 'aria-label': colorTitle(code),
       onclick: () => this._setColor(code),
-      onpointerenter: () => this.tip.replaceChildren(el('b', {}, czName(code)), displayCode(code) ? ` · ${displayCode(code)} · ${finishLabel(bead(code).finish)}` : ''),
+      onpointerenter: () => this._hoverTip(code),
       onpointerleave: () => this._showTip(),
     }, beadSwatch(code));
     this.paletteBox.replaceChildren(...PALETTE.map((p) => swatch(p.code)));

@@ -379,7 +379,6 @@ export class Composer {
         el('div', { class: 'segmented', role: 'group' }, LAYOUTS.map(([id, label, title]) => el('button', {
           class: layout === id ? 'on' : '', title, 'aria-pressed': String(layout === id), onclick: () => update({ layout: id }),
         }, label)))) : null,
-      this._note(p),
       el('div', { class: 'field-row' },
         pictures && layout !== 'spread' ? stepper(layout === 'repeat' ? 'Nejmenší mezera' : 'Mezery', 'gap', p.gap ?? 2, 0, 30) : null,
         pictures ? stepper('Barevné konce', 'ends', p.ends ?? 0, 0, 6) : null,
@@ -390,6 +389,8 @@ export class Composer {
         select('Velikost korálků', Object.entries(BEAD_SIZES).map(([v, def]) => [v, def.label]), p.size ?? DEFAULT_SIZE, (v) => update({ size: Number(v) })),
         select('Tvar konců', [[0, 'Rovné'], [1, 'Špička ke sponě']], p.taper ? 1 : 0, (v) => update({ taper: v === '1' })),
       ),
+      // Below the controls: it changes length with them, and must not push them from under the pointer.
+      this._note(p),
       fitted && p.w !== fitted ? el('button', { class: 'linkish', onclick: () => update({ w: fitted }) }, `Vrátit šířku podle motivu, ${fitted} řad`) : null,
       el('p', { class: 'hint' }, `Délka ${beads(p.n)} se počítá ze zápěstí ${czNumber(store.design.wrist)} cm.`,
         part.cells ? ' Změna rozložení vzor přepočítá a ruční kreslení přepíše. Vrátit se dá tlačítkem Zpět ve schématu.' : null),
