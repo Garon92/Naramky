@@ -2,8 +2,8 @@
 // side in each row, and every other row shifts by half a bead, like bricks in a wall.
 // A bead on row r, column c sits at x = c + (r % 2) / 2 beads along the band.
 import { SHAPES } from '../core/shapes.js';
-import { parseMotif, placeMotif } from '../core/motifs.js';
-import { PIXELS, placePixels, pixelSize } from '../core/pixels.js';
+import { motifOf, parseMotif, placeMotif } from '../core/motifs.js';
+import { pixelOf, placePixels, pixelSize } from '../core/pixels.js';
 
 export const NONE = 255;
 
@@ -31,92 +31,183 @@ function taper(cells, w, n) {
   }
 }
 
-// The band for a picture: one free row above and below the tallest one. Null without pictures.
-export function fittedWidth(p) {
-  if (p.kind === 'pixels') return Math.max(...p.items.map((id) => pixelSize(id).rows)) + 2;
-  if (p.kind === 'motifs') return Math.max(...[...p.seq, ...(p.spacer ? [p.spacer] : [])].map((id) => parseMotif(id).rows)) + 2;
-  return null;
+// --- Pictures along the band ---
+// Sewn bands use motifs on the brick lattice, woven ones pixel pictures on the grid. Everything
+// else about a row of pictures is the same for both.
+
+export const hasFigures = (p) => p.kind === 'motifs' || p.kind === 'pixels';
+export const figureKey = (p) => (p.kind === 'pixels' ? 'items' : 'seq');
+export const figuresOf = (p) => p[figureKey(p)];
+
+function sizeOf(p, id) {
+  if (p.kind === 'pixels') return pixelSize(id);
+  const m = parseMotif(id);
+  return { rows: m.rows, cols: m.widthBeads };
 }
 
-const pixelsWidth = ({ items, gap = 2 }) => items.reduce((sum, id) => sum + pixelSize(id).cols, 0) + gap * (items.length - 1);
+// What the app calls a picture, and the name of its other parts that have their own colour.
+function figureInfo(p, id) {
+  if (p.kind === 'pixels') {
+    const { label, legend } = pixelOf(id);
+    const [plural, ...parts] = Object.values(legend);
+    return { name: label, plural, parts };
+  }
+  const { name, plural } = motifOf(id);
+  return { name, plural, parts: parseMotif(id).beads.some((b) => b.center) ? ['Středy'] : [] };
+}
+
+// The beads of one picture around a centre given in beads along the band. part is null for
+// the picture itself, or the name of its other part.
+function beadsOf(p, id, center, w, n) {
+  const { rows, cols } = sizeOf(p, id);
+  const top = Math.floor((w - rows) / 2);
+  if (p.kind === 'pixels') {
+    const { legend } = pixelOf(id);
+    const mainKey = Object.keys(legend)[0];
+    return placePixels(id, Math.round(center - (cols - 1) / 2), top, w, n)
+      .map(({ r, c, part }) => ({ r, c, part: part === mainKey ? null : legend[part] }));
+  }
+  return placeMotif(id, Math.round(2 * center), top, w, n).map(({ r, c, center: mid }) => ({ r, c, part: mid ? 'Středy' : null }));
+}
+
+// The band for a picture: one free row above and below the tallest one. Null without pictures.
+export function fittedWidth(p) {
+  if (!hasFigures(p)) return null;
+  const rows = [...figuresOf(p), ...(p.spacer ? [p.spacer] : [])].map((id) => sizeOf(p, id).rows);
+  return (rows.length ? Math.max(...rows) + 2 : 11) + 2 * (p.frame ?? 0);
+}
+
+// Where the pictures go along the band. The row is always centred, so both margins match:
+//   center: a group in the middle, with gaps as asked for, closing up if there is no room
+//   spread: the pictures spread over the whole length with equal gaps
+//   repeat: as spread, with the row repeated as many times as it fits
+// Centres are in beads. overflow says how many beads are missing to fit everything in.
+export function placeFigures(p) {
+  const ids = figuresOf(p);
+  const widths = ids.map((id) => sizeOf(p, id).cols);
+  const spacerWidth = p.spacer ? sizeOf(p, p.spacer).cols : 0;
+  const room = p.n - 2 * (p.ends ?? 0);
+  const mid = (p.n - (p.kind === 'pixels' ? 1 : 0.5)) / 2;
+  const sum = widths.reduce((a, b) => a + b, 0);
+  const wanted = p.gap ?? 2;
+  const layout = p.layout ?? 'center';
+  const gapsPerJoint = spacerWidth ? 2 : 1;
+  const times = layout === 'repeat' && ids.length
+    ? Math.max(1, Math.floor(room / (sum + ids.length * (spacerWidth + gapsPerJoint * wanted))))
+    : 1;
+  const count = ids.length * times;
+  const joints = Math.max(0, count - 1);
+  const solid = times * sum + joints * spacerWidth;
+  const free = room - solid;
+  const gap = layout === 'center'
+    ? Math.max(0, Math.min(wanted, joints ? Math.floor(free / (joints * gapsPerJoint)) : wanted))
+    : Math.max(0, Math.floor(free / (joints * gapsPerJoint + 1)));
+  const used = solid + gap * joints * gapsPerJoint;
+  const spots = [];
+  const spacers = [];
+  let edge = mid - used / 2;
+  for (let i = 0; i < count; i++) {
+    const index = i % ids.length;
+    spots.push({ index, center: edge + widths[index] / 2 });
+    edge += widths[index];
+    if (i === count - 1) break;
+    if (spacerWidth) {
+      spacers.push({ index: spacers.length, center: edge + gap + spacerWidth / 2 });
+      edge += spacerWidth + gap;
+    }
+    edge += gap;
+  }
+  return { spots, spacers, gap, times, margin: (room - used) / 2, overflow: Math.max(0, used - room) };
+}
+
+// Beads only sit on lattice positions, so a row can land off centre. This is how many whole
+// beads bring its two margins closest. Half a bead is out of reach, it would change the lattice.
+function centring(p, ids, spots, w, n) {
+  let left = Infinity;
+  let right = -Infinity;
+  for (const { index, center } of spots) {
+    for (const { r, c } of beadsOf(p, ids[index], center, w, n)) {
+      const x = c + (p.kind === 'pixels' ? 0 : (r % 2) / 2);
+      left = Math.min(left, x);
+      right = Math.max(right, x);
+    }
+  }
+  if (left === Infinity) return 0;
+  return Math.round(((p.kind === 'pixels' ? n - 1 : n - 0.5) - right - left) / 2);
+}
+
+// A row of pictures. Each is its own slot, so it can be recoloured alone, and slots sharing
+// a group can be recoloured together.
+function figures(p, w, n) {
+  const cells = new Uint8Array(w * n);
+  const ids = figuresOf(p);
+  const info = ids.map((id) => figureInfo(p, id));
+  const group = new Set(info.map((x) => x.plural)).size > 1 ? 'Motivy' : info[0]?.plural;
+  const roles = [{ label: 'Podklad', group: 'Podklad' }];
+  info.forEach((x, i) => roles.push({ label: `${x.name} ${i + 1}`, group }));
+  const spacerFirst = roles.length;
+  const spacerRoles = p.spacer ? Math.max(0, p.layout === 'repeat' ? ids.length : ids.length - 1) : 0;
+  for (let i = 0; i < spacerRoles; i++) roles.push({ label: `Mezičlánek ${i + 1}`, group: 'Mezičlánky' });
+  const endFirst = roles.length;
+  if (p.ends) roles.push({ label: 'Levý konec', group: 'Konce' }, { label: 'Pravý konec', group: 'Konce' });
+  const bg2Slot = roles.length;
+  if (p.bg2) roles.push({ label: 'Trojúhelníky', group: 'Trojúhelníky' });
+  const partSlot = new Map();
+  for (const name of info.flatMap((x) => x.parts)) {
+    if (partSlot.has(name)) continue;
+    partSlot.set(name, roles.length);
+    roles.push({ label: name, group: name });
+  }
+  const frameSlot = roles.length;
+  if (p.frame) roles.push({ label: 'Lem', group: 'Lem' });
+
+  const { spots, spacers } = placeFigures(p);
+  const nudge = centring(p, ids, spots, w, n);
+  const taken = new Set();
+  for (const { index, center } of spots) {
+    for (const { r, c, part } of beadsOf(p, ids[index], center + nudge, w, n)) {
+      cells[r * n + c] = part ? partSlot.get(part) : index + 1;
+      taken.add(r * n + c);
+    }
+  }
+  for (const { index, center } of spacers) {
+    for (const { r, c } of beadsOf(p, p.spacer, center + nudge, w, n)) {
+      cells[r * n + c] = spacerFirst + index % spacerRoles;
+      taken.add(r * n + c);
+    }
+  }
+  if (p.bg2) {
+    // Triangles rising between the motifs from the lower edge of the band.
+    const top = Math.floor(w * 0.4);
+    for (let i = 0; i + 1 < spots.length; i++) {
+      const mid = (Math.round(2 * spots[i].center) + Math.round(2 * spots[i + 1].center)) / 4 + nudge;
+      for (let r = top; r < w; r++) {
+        for (let c = 0; c < n; c++) {
+          if (Math.abs(beadX(r, c) - mid) <= (r - top + 1) * 0.55 && !taken.has(r * n + c)) cells[r * n + c] = bg2Slot;
+        }
+      }
+    }
+  }
+  if (p.frame) {
+    for (let r = 0; r < w; r++) {
+      if (r >= p.frame && r < w - p.frame) continue;
+      for (let c = 0; c < n; c++) if (!taken.has(r * n + c)) cells[r * n + c] = frameSlot;
+    }
+  }
+  if (p.ends) {
+    for (let r = 0; r < w; r++) {
+      for (let e = 0; e < p.ends; e++) {
+        cells[r * n + e] = endFirst;
+        cells[r * n + n - 1 - e] = endFirst + 1;
+      }
+    }
+  }
+  if (p.taper) taper(cells, w, n);
+  return { cells, roles };
+}
 
 const generators = {
-  // A row of motifs. Every motif, spacer and end is its own slot, so each can be
-  // recoloured alone, and slots sharing a group can be recoloured together.
-  motifs(p, w, n) {
-    const cells = new Uint8Array(w * n);
-    const seq = p.seq;
-    const k = seq.length;
-    const motifLabel = p.motifLabel ?? 'Motiv';
-    const motifGroup = p.motifGroup ?? `${motifLabel}y`;
-    const roles = [{ label: 'Podklad', group: 'Podklad' }];
-    seq.forEach((_, i) => roles.push({ label: `${motifLabel} ${i + 1}`, group: motifGroup }));
-    const spacerFirst = roles.length;
-    if (p.spacer) {
-      for (let i = 0; i < k - 1; i++) roles.push({ label: `Mezičlánek ${i + 1}`, group: 'Mezičlánky' });
-    }
-    const endFirst = roles.length;
-    if (p.ends) {
-      roles.push({ label: 'Levý konec', group: 'Konce' }, { label: 'Pravý konec', group: 'Konce' });
-    }
-    const bg2Slot = roles.length;
-    if (p.bg2) roles.push({ label: 'Trojúhelníky', group: 'Trojúhelníky' });
-
-    const parsedSeq = seq.map((id) => parseMotif(id));
-    const centerSlot = roles.length;
-    if (parsedSeq.some((m) => m.beads.some((b) => b.center))) roles.push({ label: 'Středy', group: 'Středy' });
-    const spacer = p.spacer ? parseMotif(p.spacer) : null;
-    const gap = p.gap ?? 2;
-    const between = gap + (spacer ? spacer.widthBeads + gap : 0);
-    const total = parsedSeq.reduce((sum, m) => sum + m.widthBeads, 0) + between * (k - 1);
-    // Positions in half beads, so motifs stay centred whatever the band length.
-    let x = n - 0.5 - total + parsedSeq[0].widthBeads;
-    const centers = [];
-    parsedSeq.forEach((m, i) => {
-      centers.push(Math.round(x));
-      if (i < k - 1) x += m.widthBeads + parsedSeq[i + 1].widthBeads + between * 2;
-    });
-
-    const topFor = (m) => Math.floor((w - m.rows) / 2);
-    const motifCells = new Set();
-    parsedSeq.forEach((m, i) => {
-      for (const { r, c, center } of placeMotif(seq[i], centers[i], topFor(m), w, n)) {
-        cells[r * n + c] = center ? centerSlot : i + 1;
-        motifCells.add(r * n + c);
-      }
-    });
-    if (spacer) {
-      for (let i = 0; i < k - 1; i++) {
-        const cx = Math.round((centers[i] + centers[i + 1]) / 2);
-        for (const { r, c } of placeMotif(p.spacer, cx, topFor(spacer), w, n)) {
-          cells[r * n + c] = spacerFirst + i;
-          motifCells.add(r * n + c);
-        }
-      }
-    }
-    if (p.bg2) {
-      // Triangles rising between the motifs from the lower edge of the band.
-      const top = Math.floor(w * 0.4);
-      for (let i = 0; i < k - 1; i++) {
-        const mid = (centers[i] + centers[i + 1]) / 4;
-        for (let r = top; r < w; r++) {
-          for (let c = 0; c < n; c++) {
-            if (Math.abs(beadX(r, c) - mid) <= (r - top + 1) * 0.55 && !motifCells.has(r * n + c)) cells[r * n + c] = bg2Slot;
-          }
-        }
-      }
-    }
-    if (p.ends) {
-      for (let r = 0; r < w; r++) {
-        for (let e = 0; e < p.ends; e++) {
-          cells[r * n + e] = endFirst;
-          cells[r * n + n - 1 - e] = endFirst + 1;
-        }
-      }
-    }
-    if (p.taper) taper(cells, w, n);
-    return { cells, roles };
-  },
+  motifs: figures,
 
   // V shapes along the band.
   chevron(p, w, n) {
@@ -253,42 +344,7 @@ const generators = {
 // --- Loom patterns, in a straight grid ---
 
 Object.assign(generators, {
-  // A row of little pictures. Every named part is one colour, shared by all pictures.
-  pixels(p, w, n) {
-    const cells = new Uint8Array(w * n);
-    const { items } = p;
-    const roles = [{ label: 'Podklad', group: 'Podklad' }];
-    const slotOf = new Map();
-    // The first part of each picture is its own object, so it can differ picture by picture.
-    const mainSlot = items.map((id, i) => {
-      const main = Object.values(PIXELS[id].legend)[0];
-      const label = p.split ? `${PIXELS[id].label} ${i + 1}` : main;
-      if (!p.split && slotOf.has(main)) return slotOf.get(main);
-      roles.push({ label, group: p.splitGroup ?? main });
-      if (!p.split) slotOf.set(main, roles.length - 1);
-      return roles.length - 1;
-    });
-    items.forEach((id) => {
-      for (const name of Object.values(PIXELS[id].legend).slice(1)) {
-        if (!slotOf.has(name)) {
-          slotOf.set(name, roles.length);
-          roles.push({ label: name, group: name });
-        }
-      }
-    });
-    const gap = p.gap ?? 2;
-    let c = Math.round((n - pixelsWidth(p)) / 2);
-    items.forEach((id, i) => {
-      const { rows, cols } = pixelSize(id);
-      const legend = PIXELS[id].legend;
-      const mainKey = Object.keys(legend)[0];
-      for (const bead of placePixels(id, c, Math.floor((w - rows) / 2), w, n)) {
-        cells[bead.r * n + bead.c] = bead.part === mainKey ? mainSlot[i] : slotOf.get(legend[bead.part]);
-      }
-      c += cols + gap;
-    });
-    return { cells, roles };
-  },
+  pixels: figures,
 
   // Plaid: crossing bands of colour. Where they meet, the darker one wins every other bead.
   tartan(p, w, n) {
@@ -362,11 +418,11 @@ export const GENERATORS = Object.keys(generators);
 
 // Shortest band that still shows the whole row of motifs, for gallery cards.
 export function compactColumns(p) {
-  if (p.kind === 'pixels') return pixelsWidth(p) + 4;
-  const widths = p.seq.map((id) => parseMotif(id).widthBeads);
-  const spacer = p.spacer ? parseMotif(p.spacer).widthBeads + (p.gap ?? 2) : 0;
-  const motifs = widths.reduce((a, b) => a + b, 0) + ((p.gap ?? 2) + spacer) * (widths.length - 1);
-  return Math.max(26, motifs + 4 + (p.ends ?? 0) * 2);
+  const ids = figuresOf(p);
+  const gap = p.gap ?? 2;
+  const spacer = p.spacer ? sizeOf(p, p.spacer).cols + gap : 0;
+  const pictures = ids.reduce((sum, id) => sum + sizeOf(p, id).cols, 0) + (gap + spacer) * Math.max(0, ids.length - 1);
+  return Math.max(26, pictures + 4 + (p.ends ?? 0) * 2);
 }
 
 export function generate(params) {

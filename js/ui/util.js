@@ -16,6 +16,12 @@ export function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+// replaceChildren would print null. This skips empty children, like el() does.
+export function fill(node, ...children) {
+  node.replaceChildren();
+  append(node, children);
+}
+
 function append(node, children) {
   for (const c of children.flat(Infinity)) {
     if (c === null || c === undefined || c === false) continue;

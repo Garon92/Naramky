@@ -13,8 +13,8 @@ const HEARTS = ['heartN', 'heartN', 'heartN', 'heartN'];
 // The tabs of the gallery, one per way of making a bracelet. A pattern belongs to the tab
 // that lists its group.
 export const COLLECTIONS = [
-  { id: 'pasy', label: 'Šité pásy', hint: 'Peyote z korálků Delica: pevný pásek, na kterém dobře vyjde každý motiv. Barevné kombinace si přepneš přímo v návrhu.', groups: ['Čtyři srdíčka', 'Další srdíčka', 'Hvězdy a květiny', 'Geometrie', 'Přechody'] },
-  { id: 'tkane', label: 'Tkané', hint: 'Tkané na stávku. Korálky leží v rovných řadách, takže na nich vyjdou i malé obrázky.', groups: ['Tkané obrázky', 'Tkané vzory'] },
+  { id: 'pasy', label: 'Šité pásy', blank: 'prazdny-sity', hint: 'Peyote z korálků Delica: pevný pásek, na kterém dobře vyjde každý motiv. Barevné kombinace si přepneš přímo v návrhu.', groups: ['Čtyři srdíčka', 'Další srdíčka', 'Hvězdy a květiny', 'Geometrie', 'Přechody'] },
+  { id: 'tkane', label: 'Tkané', blank: 'prazdny-tkany', hint: 'Tkané na stávku. Korálky leží v rovných řadách, takže na nich vyjdou i malé obrázky.', groups: ['Tkané obrázky', 'Tkané vzory'] },
   { id: 'stehy', label: 'Šité stehy', hint: 'Každý steh má vlastní vazbu a jiný vzhled. Postup je u nich jen orientační.', groups: ['Rybí kost', 'Další stehy'] },
   { id: 'krajka', label: 'Kytičky a krajka', hint: 'Vzdušné řetízky šité z rokajlů. Postup je u nich jen orientační.', groups: ['Kytičky', 'Krajka'] },
   { id: 'provazy', label: 'Provazy a uzlíky', hint: 'Kulaté provazy, makramé a střapaté třásně. Postup je u nich jen orientační.', groups: ['Provazy', 'Makramé', 'Třásně'] },
@@ -24,11 +24,11 @@ export const COLLECTIONS = [
 
 const list = [];
 
-function addPeyote({ id, group, name, params, colorways }) {
+function addPeyote({ id, group, name, params, colorways, hidden }) {
   const full = { w: WIDTH, n: FULL_COLS, size: DEFAULT_SIZE, ...params };
   full.w = fittedWidth(full) ?? full.w;
   list.push({
-    id, group, name, colorways,
+    id, group, name, colorways, hidden,
     make() {
       const slots = generate(full).roles.map((role) => ({ ...role, code: 'white' }));
       const d = makeDesign({ name, slots, preset: id, parts: [{ tech: 'peyote', params: JSON.parse(JSON.stringify(full)), cells: null }] });
@@ -91,7 +91,7 @@ for (const [name, bg, hearts] of [
 
 addPeyote({
   id: 'srdce', group: 'Čtyři srdíčka', name: '4 srdíčka',
-  params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2 },
+  params: { kind: 'motifs', seq: HEARTS, gap: 2 },
   colorways: plainWays,
 });
 
@@ -111,7 +111,7 @@ const END_WAYS = [
 ];
 addPeyote({
   id: 'srdce-konce', group: 'Čtyři srdíčka', name: '4 srdíčka s barevnými konci',
-  params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2, ends: 2 },
+  params: { kind: 'motifs', seq: HEARTS, gap: 2, ends: 2 },
   colorways: END_WAYS.map(([name, bg, hearts, ends]) => ({
     name, set: ['black', 'navy', 'forest', 'petrol', 'berry', 'raspberry'].includes(bg) ? 'Tmavý podklad' : bg === 'white' || bg === 'cream' ? 'Světlý podklad' : 'Barevný podklad',
     colors: heartColors(bg, hearts, { Konce: ends }),
@@ -126,13 +126,13 @@ const CLASSIC = [
 ];
 addPeyote({
   id: 'srdce-mezi', group: 'Čtyři srdíčka', name: '4 srdíčka se zlatými mezičlánky',
-  params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 1, spacer: 'dot', ends: 2 },
+  params: { kind: 'motifs', seq: HEARTS, gap: 1, spacer: 'dot', ends: 2 },
   colorways: CLASSIC.map(([name, bg, hearts]) => ({ name, colors: heartColors(bg, hearts, { Mezičlánky: 'gold', Konce: 'gold' }) })),
 });
 
 addPeyote({
   id: 'srdce-troj', group: 'Čtyři srdíčka', name: '4 srdíčka s trojúhelníky',
-  params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2, ends: 2, bg2: true },
+  params: { kind: 'motifs', seq: HEARTS, gap: 2, ends: 2, bg2: true },
   colorways: [
     { name: 'Korálová', colors: heartColors('coral', 'aqua amber white purple', { Konce: 'raspberry', Trojúhelníky: 'blush' }) },
     { name: 'Levandulová', colors: heartColors('lilac', 'yellow pink purple aqua', { Konce: 'lilac', Trojúhelníky: 'lavender' }) },
@@ -284,32 +284,32 @@ const ways = (...items) => items.map(([name, ...colors]) => ({ name, colors: Obj
 
 addPeyote({
   id: 'rodina', group: 'Další srdíčka', name: 'Velká a malá srdíčka',
-  params: { kind: 'motifs', seq: ['heartS', 'heartN', 'heartN', 'heartS'], motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2, ends: 2 },
+  params: { kind: 'motifs', seq: ['heartS', 'heartN', 'heartN', 'heartS'], gap: 2, ends: 2 },
   colorways: [motifWay('Rodinná', 'pearl', 'pink cobalt raspberry sky', 'Srdíčka', { Konce: 'gold' })],
 });
 addPeyote({
   id: 'dva-a-dve', group: 'Další srdíčka', name: 'Šest srdíček',
-  params: { kind: 'motifs', seq: ['heartS', 'heartS', 'heartN', 'heartN', 'heartS', 'heartS'], motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 1, ends: 2 },
+  params: { kind: 'motifs', seq: ['heartS', 'heartS', 'heartN', 'heartN', 'heartS', 'heartS'], gap: 1, ends: 2 },
   colorways: [motifWay('Dva a dvě', 'cream', 'royal sky raspberry cobalt pink blush', 'Srdíčka', { Konce: 'gold' })],
 });
 addPeyote({
   id: 'radka', group: 'Další srdíčka', name: 'Řada malých srdíček',
-  params: { kind: 'motifs', seq: Array(8).fill('heartS'), motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 2, ends: 2 },
+  params: { kind: 'motifs', seq: Array(8).fill('heartS'), gap: 2, ends: 2 },
   colorways: [motifWay('Duhová', 'white', 'royal pink sky blush turq hot purple yellow', 'Srdíčka', { Konce: 'gold' })],
 });
 addPeyote({
   id: 'jedno', group: 'Další srdíčka', name: 'Jedno velké srdce',
-  params: { kind: 'motifs', seq: ['heartL'], motifLabel: 'Srdce', motifGroup: 'Srdce', gap: 1 },
-  colorways: [motifWay('Malinová', 'blush', 'raspberry', 'Srdce')],
+  params: { kind: 'motifs', seq: ['heartL'], gap: 1 },
+  colorways: [motifWay('Malinová', 'blush', 'raspberry', 'Srdíčka')],
 });
 addPeyote({
   id: 'krizky', group: 'Další srdíčka', name: 'Srdíčka a křížky',
-  params: { kind: 'motifs', seq: HEARTS, motifLabel: 'Srdíčko', motifGroup: 'Srdíčka', gap: 1, spacer: 'cross' },
+  params: { kind: 'motifs', seq: HEARTS, gap: 1, spacer: 'cross' },
   colorways: [motifWay('Stříbrná', 'white', 'cobalt cobalt raspberry raspberry', 'Srdíčka', { Mezičlánky: 'palladium' })],
 });
 addPeyote({
   id: 'hvezdy', group: 'Hvězdy a květiny', name: 'Hvězdy',
-  params: { kind: 'motifs', seq: Array(4).fill('star'), motifLabel: 'Hvězda', motifGroup: 'Hvězdy', gap: 2 },
+  params: { kind: 'motifs', seq: Array(4).fill('star'), gap: 2 },
   colorways: [
     motifWay('Hvězdná noc', 'navy', 'gold paleyellow gold paleyellow', 'Hvězdy'),
     motifWay('Pro čtyři', 'pearl', 'royal sky pink raspberry', 'Hvězdy'),
@@ -317,7 +317,7 @@ addPeyote({
 });
 addPeyote({
   id: 'kvetiny', group: 'Hvězdy a květiny', name: 'Květiny',
-  params: { kind: 'motifs', seq: Array(4).fill('flower'), motifLabel: 'Květina', motifGroup: 'Květiny', gap: 3 },
+  params: { kind: 'motifs', seq: Array(4).fill('flower'), gap: 3 },
   colorways: [
     motifWay('Louka', 'pistachio', 'hot white purple orange', 'Květiny', { Středy: 'yellow' }),
     motifWay('Na krému', 'cream', 'raspberry lilac royal turq', 'Květiny', { Středy: 'yellow' }),
@@ -326,12 +326,12 @@ addPeyote({
 });
 addPeyote({
   id: 'ctyrlistky', group: 'Hvězdy a květiny', name: 'Čtyřlístky',
-  params: { kind: 'motifs', seq: Array(4).fill('clover'), motifLabel: 'Čtyřlístek', motifGroup: 'Čtyřlístky', gap: 3 },
+  params: { kind: 'motifs', seq: Array(4).fill('clover'), gap: 3 },
   colorways: [motifWay('Pro štěstí', 'white', 'emerald green emerald green', 'Čtyřlístky')],
 });
 addPeyote({
   id: 'kosoctverce', group: 'Hvězdy a květiny', name: 'Kosočtverce',
-  params: { kind: 'motifs', seq: Array(5).fill('diamond'), motifLabel: 'Kosočtverec', motifGroup: 'Kosočtverce', gap: 1 },
+  params: { kind: 'motifs', seq: Array(5).fill('diamond'), gap: 1 },
   colorways: [motifWay('Modré', 'pearl', 'royal turq purple turq royal', 'Kosočtverce')],
 });
 addPeyote({
@@ -399,22 +399,27 @@ function addTech({ id, group, name, tech, params = {}, labels, ways: rows, metal
   });
 }
 
-function addLoom({ id, group = 'Tkané obrázky', name, params, ways: colorways }) {
-  addPeyote({ id, group, name, params: { w: 13, size: 11, n: colsForWrist(WRIST_DEFAULT, 1.6), loom: true, ...params }, colorways });
+function addLoom({ id, group = 'Tkané obrázky', name, params, ways: colorways, hidden }) {
+  addPeyote({ id, group, name, hidden, params: { w: 13, size: 11, n: colsForWrist(WRIST_DEFAULT, 1.6), loom: true, ...params }, colorways });
 }
+
+// Empty bands to compose from scratch. They open from a button instead of a gallery card.
+const BLANK = [{ name: 'Bílý', colors: { Podklad: 'white' } }];
+addPeyote({ id: 'prazdny-sity', hidden: true, name: 'Vlastní šitý pás', params: { kind: 'motifs', seq: [], gap: 3 }, colorways: BLANK });
+addLoom({ id: 'prazdny-tkany', hidden: true, name: 'Vlastní tkaný pás', params: { kind: 'pixels', items: [], gap: 3 }, ways: BLANK });
 
 const picture = (name, colors) => ({ name, colors });
 const fourTimes = (item) => [item, item, item, item];
 
 addLoom({
-  id: 'tkane-srdce', name: 'Tkaná srdíčka', params: { kind: 'pixels', items: fourTimes('heart'), split: true, splitGroup: 'Srdíčka', gap: 3 },
+  id: 'tkane-srdce', name: 'Tkaná srdíčka', params: { kind: 'pixels', items: fourTimes('heart'), gap: 3 },
   ways: [
     picture('Čtyři barvy', { Podklad: 'pearl', Srdíčka: ['royal', 'hot', 'turq', 'amber'] }),
     picture('Na půlnoční', { Podklad: 'navy', Srdíčka: ['pink', 'sky', 'yellow', 'lilac'] }),
   ],
 });
 addLoom({
-  id: 'kocicky', name: 'Kočičky', params: { kind: 'pixels', items: fourTimes('cat'), split: true, splitGroup: 'Kočičky', gap: 4 },
+  id: 'kocicky', name: 'Kočičky', params: { kind: 'pixels', items: fourTimes('cat'), gap: 4 },
   ways: [
     picture('Zrzka, šedka a spol.', { Podklad: 'paleblue', Kočičky: ['orange', 'gray', 'black', 'cream'], Oči: 'emerald', Čumáčky: 'pink' }),
     picture('Barevné', { Podklad: 'cream', Kočičky: ['lilac', 'turq', 'hot', 'amber'], Oči: 'black', Čumáčky: 'raspberry' }),
@@ -442,15 +447,15 @@ addLoom({
   ],
 });
 addLoom({
-  id: 'tulipany', name: 'Tulipány', params: { kind: 'pixels', items: Array(5).fill('tulip'), split: true, splitGroup: 'Květy', gap: 3 },
+  id: 'tulipany', name: 'Tulipány', params: { kind: 'pixels', items: Array(5).fill('tulip'), gap: 3 },
   ways: [picture('Jarní', { Podklad: 'paleblue', Květy: ['red', 'yellow', 'hot', 'purple', 'orange'], Stonky: 'green' })],
 });
 addLoom({
-  id: 'rybicky', name: 'Rybičky', params: { kind: 'pixels', items: fourTimes('fish'), split: true, splitGroup: 'Rybky', gap: 3 },
+  id: 'rybicky', name: 'Rybičky', params: { kind: 'pixels', items: fourTimes('fish'), gap: 3 },
   ways: [picture('V moři', { Podklad: 'cobalt', Rybky: ['amber', 'hot', 'lime', 'orange'], Oči: 'black', Ploutve: 'white' })],
 });
 addLoom({
-  id: 'hvezdicky', name: 'Hvězdičky', params: { kind: 'pixels', items: Array(5).fill('star'), split: true, splitGroup: 'Hvězdy', gap: 2 },
+  id: 'hvezdicky', name: 'Hvězdičky', params: { kind: 'pixels', items: Array(5).fill('star'), gap: 2 },
   ways: [picture('Noční obloha', { Podklad: 'navy', Hvězdy: ['gold', 'paleyellow', 'gold', 'paleyellow', 'gold'] })],
 });
 addLoom({
@@ -459,7 +464,7 @@ addLoom({
 });
 addLoom({
   id: 'zviratka', name: 'Mix obrázků', params: { kind: 'pixels', items: ['cat', 'mushroom', 'butterfly', 'sun', 'star'], gap: 3 },
-  ways: [picture('Na zahradě', { Podklad: 'cream', Kočičky: 'orange', Oči: 'emerald', Čumáčky: 'pink', Klobouky: 'red', 'Tečky a nožky': 'white', 'Horní křídla': 'purple', 'Spodní křídla': 'lilac', Tělíčka: 'black', Sluníčka: 'yellow', Paprsky: 'amber', Hvězdy: 'turq' })],
+  ways: [picture('Na zahradě', { Podklad: 'cream', Motivy: ['orange', 'red', 'purple', 'yellow', 'turq'], Oči: 'emerald', Čumáčky: 'pink', 'Tečky a nožky': 'white', 'Spodní křídla': 'lilac', Tělíčka: 'black', Paprsky: 'amber' })],
 });
 
 const tartan = (name, a, b, c) => picture(name, { Podklad: a, Pruh: b, Linka: c });

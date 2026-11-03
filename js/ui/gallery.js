@@ -1,5 +1,5 @@
 // Ready-made patterns, and the designs saved in this browser.
-import { PATTERNS, COLLECTIONS } from '../core/presets.js';
+import { PATTERNS, COLLECTIONS, patternById } from '../core/presets.js';
 import { decodeDesign } from '../core/design.js';
 import { flatColor, el, icon, plural, toast, copyText } from './util.js';
 import { thumbImage, forgetThumb } from './thumbs.js';
@@ -16,11 +16,12 @@ let collection = COLLECTIONS[0].id;
 export function renderGallery(root, { openDesign }) {
   const content = el('div');
   const tabs = el('div', { class: 'coll-tabs', role: 'tablist' });
-  const hint = el('p', { class: 'hint', style: { marginBottom: '6px' } });
+  const hint = el('p', { class: 'hint' });
+  const blank = el('div');
 
   const draw = () => {
     tabs.replaceChildren(...COLLECTIONS.map((c) => {
-      const count = PATTERNS.filter((p) => c.groups.includes(p.group)).length;
+      const count = PATTERNS.filter((p) => !p.hidden && c.groups.includes(p.group)).length;
       return el('button', {
         class: collection === c.id ? 'on' : '', role: 'tab', 'aria-selected': String(collection === c.id),
         onclick: () => {
@@ -32,7 +33,8 @@ export function renderGallery(root, { openDesign }) {
     }));
     const meta = COLLECTIONS.find((c) => c.id === collection);
     hint.textContent = meta.hint;
-    const groups = meta.groups.map((group) => [group, PATTERNS.filter((p) => p.group === group)]);
+    blank.replaceChildren(meta.blank ? el('button', { class: 'btn start-blank', onclick: () => openDesign(patternById(meta.blank).make()) }, icon('brush'), 'Složit vlastní od prázdného pásu') : '');
+    const groups = meta.groups.map((group) => [group, PATTERNS.filter((p) => !p.hidden && p.group === group)]);
     content.replaceChildren(...groups.flatMap(([group, list]) => [
       el('h2', { class: 'group-title' }, group, el('small', {}, `${list.length} ${plural(list.length, 'vzor', 'vzory', 'vzorů')}`)),
       el('div', { class: 'grid' }, list.map((p) => {
@@ -54,7 +56,7 @@ export function renderGallery(root, { openDesign }) {
         el('p', {}, 'Vzor je tvar. Barvy si v něm pak zvolíš po svém, nebo si vybereš z připravených kombinací.'),
       ),
     ),
-    tabs, hint, content,
+    tabs, hint, blank, content,
     el('p', { class: 'hint', style: { marginTop: '34px' } },
       'Barvy korálků: ', el('a', { href: 'https://makebead.com', rel: 'noopener', target: '_blank' }, 'craft-color-codes od MakeBead'), ', CC BY 4.0. Odstíny na obrazovce jsou přibližné. Miyuki a Delica jsou značky MIYUKI Co., Ltd., tenhle web s nimi nijak nesouvisí.'),
   ));

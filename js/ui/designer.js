@@ -5,10 +5,11 @@ import { PhotoHost, VIEWS } from './photo.js';
 import { ChartEditor } from './chart.js';
 import { renderGuide } from './guide.js';
 import { el, icon, beadSwatch, flatColor, colorTitle, displayCode, toast, copyText, saveFile, czNumber, plural, safeStorage } from './util.js';
+import { Composer } from './composer.js';
 import { PALETTE, FAMILIES, allBeads, extraBeads, czName, finishLabel, bead, codeOf } from '../core/catalog.js';
-import { TECHNIQUES, paintablePart, applyWrist, applyMotifSettings, groupsOf, groupOfSlot, setGroupColor, applyColorway, setBeadSlot, extraSlotFor, pruneExtras, resetBead, removeExtraColor, EXTRA_GROUP } from '../core/design.js';
+import { TECHNIQUES, paintablePart, applyWrist, groupsOf, groupOfSlot, setGroupColor, applyColorway, setBeadSlot, extraSlotFor, pruneExtras, resetBead, removeExtraColor, EXTRA_GROUP } from '../core/design.js';
 import { patternById } from '../core/presets.js';
-import { bandSize, BEAD_SIZES, DEFAULT_SIZE } from '../techniques/peyote.js';
+import { bandSize, figuresOf } from '../techniques/peyote.js';
 import { SHAPES } from '../core/shapes.js';
 import { SURFACE_LIST } from '../engine/surfaces.js';
 import { onThemeChange } from './theme.js';
@@ -16,9 +17,6 @@ import { onThemeChange } from './theme.js';
 const STAGE_SPLIT = 'naramky:stage-split';
 const METALS = [
   ['steel', 'Chirurgická ocel'], ['rose', 'Růžové zlato'], ['gold', 'Zlatá'], ['dark', 'Tmavá'], ['none', 'Bez spony'],
-];
-const MOTIF_OPTIONS = [
-  ['heartS', 'Srdce malé'], ['heartN', 'Srdce'], ['heartM', 'Srdce větší'], ['heartL', 'Srdce velké'], ['star', 'Hvězda'], ['flower', 'Květina'], ['clover', 'Čtyřlístek'], ['diamond', 'Kosočtverec'],
 ];
 const STRAND_SHAPES = ['rocaille15', 'rocaille11', 'rocaille8', 'delica11', 'round3', 'round4', 'round6', 'cube3', 'cube4', 'bugle3', 'bugle6', 'bicone4', 'halftila'];
 // Bright, friendly colours for the "surprise me" button.
@@ -73,9 +71,15 @@ export class Designer {
     this.tip = el('div', { class: 'swatch-tip' });
     this.labelBox = el('div', { style: { marginTop: '12px' } });
     this.formBox = el('div', { style: { display: 'grid', gap: '10px' } });
-    this.side.append(
+    this.composer = new Composer({
+      selectSlot: (slot) => this._selectTile(slot),
+      openTab: (id) => this._openSideTab(id),
+    });
+    this.sideTab = 'color';
+    this.sideTabs = el('div', { class: 'subtabs side-tabs', role: 'tablist' });
+    this.colorPanel = el('div', { class: 'side-panel' },
       el('section', {},
-        el('div', { class: 'section-title' }, el('h2', {}, 'Barvy'), el('button', { class: 'btn small ghost', title: 'Náhodné barvy', onclick: () => this._surprise() }, icon('dice'), 'Překvap mě')),
+        el('div', { class: 'section-title' }, el('span', {}, 'Co chceš obarvit'), el('button', { class: 'btn small ghost', title: 'Náhodné barvy', onclick: () => this._surprise() }, icon('dice'), 'Překvap mě')),
         this.slotsBox,
         this.memberBox,
         this.hintEl,
@@ -85,10 +89,17 @@ export class Designer {
         this.labelBox,
       ),
       this.waysBox,
-      el('section', {},
-        el('div', { class: 'section-title' }, el('h2', {}, 'Detaily návrhu')),
-        this.formBox,
-      ),
+    );
+    this.detailsPanel = el('div', { class: 'side-panel' },
+      this.formBox,
+    );
+    this.side.append(
+      this.composer.bar,
+      this.sideTabs,
+      this.colorPanel,
+      this.composer.shapes,
+      this.composer.layout,
+      this.detailsPanel,
       el('section', { class: 'actions' },
         el('button', { class: 'btn primary', onclick: () => this._share() }, icon('send'), 'Sdílet návrh'),
         el('div', { class: 'actions-row' },
@@ -117,6 +128,9 @@ export class Designer {
     this._renderTitle();
     if (kind === 'text') return;
     this._renderUndo();
+    if (kind === 'load' && this.composer.figurePart && !this.composer.ids.length) this.sideTab = 'shape';
+    this._renderSideTabs();
+    this.composer.render(kind);
     this._renderSlots();
     this._renderPalette();
     if (kind === 'meta') {
@@ -133,6 +147,28 @@ export class Designer {
     this._renderColorways();
     this._renderLower(kind);
     if (this.photo.stage) this.photo.show(d, { reframe: kind === 'load' || kind === 'geometry' });
+  }
+
+  _renderSideTabs() {
+    const tabs = [['color', 'Barvy']];
+    if (this.composer.figurePart) tabs.push(['shape', 'Tvary']);
+    if (this.composer.part) tabs.push(['layout', 'Rozložení']);
+    tabs.push(['details', 'Detaily']);
+    if (!tabs.some(([id]) => id === this.sideTab)) this.sideTab = 'color';
+    this.sideTabs.replaceChildren(...tabs.map(([id, label]) => el('button', {
+      class: this.sideTab === id ? 'on' : '', role: 'tab', 'aria-selected': String(this.sideTab === id),
+      onclick: () => this._openSideTab(id),
+    }, label)));
+    this.colorPanel.hidden = this.sideTab !== 'color';
+    this.composer.shapes.hidden = this.sideTab !== 'shape';
+    this.composer.layout.hidden = this.sideTab !== 'layout';
+    this.detailsPanel.hidden = this.sideTab !== 'details';
+  }
+
+  _openSideTab(id) {
+    this.sideTab = id;
+    this._renderSideTabs();
+    this.composer.render('tab');
   }
 
   // On a computer the photo and the panels below share the window, and the split can move.
@@ -185,9 +221,9 @@ export class Designer {
     }, s.label)));
   }
 
-  // Beads are recoloured one tap at a time, so a mistake is undone right where it happened.
+  // A mistake is undone right where it happened, next to the bracelet.
   _renderUndo() {
-    this.undoBar.hidden = this.tapMode !== 'paint';
+    this.undoBar.hidden = this.tapMode !== 'paint' && !store.past.length && !store.future.length;
     this.undoBar.replaceChildren(
       el('button', { title: 'Vrátí poslední změnu', disabled: !store.past.length, onclick: () => store.undo() }, icon('undo'), 'Zpět'),
       el('button', { title: 'Znovu provede změnu vrácenou tlačítkem Zpět', disabled: !store.future.length, onclick: () => store.redo() }, icon('redo'), 'Znovu'),
@@ -223,7 +259,16 @@ export class Designer {
         }, el('span', { class: 'mini' }, codes.slice(0, 4).map((code) => beadSwatch(code))), el('span', {}, g.name, el('small', {}, detail)));
       }),
     );
-    if (current.slots.length > 1) {
+    if (current.slots.length > 1 && this.composer.figurePart && current.slots.includes(1)) {
+      // The tiles on top already pick a single picture.
+      this.memberBox.replaceChildren(
+        el('button', {
+          class: `member${store.allInGroup ? ' on' : ''}`, role: 'radio', 'aria-checked': String(store.allInGroup),
+          onclick: () => this._selectGroup(current),
+        }, 'Všechny najednou'),
+        el('span', { class: 'hint member-hint' }, 'nebo jeden motiv nahoře'),
+      );
+    } else if (current.slots.length > 1) {
       this.memberBox.replaceChildren(
         el('button', {
           class: `member${store.allInGroup ? ' on' : ''}`, role: 'radio', 'aria-checked': String(store.allInGroup),
@@ -273,6 +318,12 @@ export class Designer {
     store.notify('meta');
   }
 
+  // A picked tile is about to get a colour or a shape, so the panel must offer one.
+  _selectTile(slot) {
+    if (this.sideTab !== 'shape') this.sideTab = 'color';
+    this._selectSlot(slot);
+  }
+
   _leavePaintMode() {
     if (this.tapMode === 'select') return;
     this.tapMode = 'select';
@@ -281,7 +332,10 @@ export class Designer {
 
   _setTapMode(id) {
     this.tapMode = id;
-    if (id === 'paint') this.paintCode = store.design.slots[store.selected]?.code;
+    if (id === 'paint') {
+      this.paintCode = store.design.slots[store.selected]?.code;
+      this.sideTab = 'color';
+    }
     this._renderBars();
     store.notify('meta');
   }
@@ -533,7 +587,7 @@ export class Designer {
     this.tabGuide.hidden = this.tab !== 'guide';
 
     if (this.tab === 'chart') {
-      if (part) this._renderChartTab(part, kind);
+      if (part) this._renderChartTab(part);
       else if (hasStrands) this._renderStrandTab();
       else if (hasSettings) this._renderTechniqueSettings();
       else this.tabChart.replaceChildren();
@@ -541,8 +595,8 @@ export class Designer {
     if (this.tab === 'guide') this.redrawGuide = renderGuide(this.tabGuide, d, { onPrint: () => this._print() });
   }
 
-  _renderChartTab(part, kind) {
-    if (!this.chart || this.chart.dom.parentElement !== this.tabChart || !this.chartBox) {
+  _renderChartTab(part) {
+    if (!this.chart || this.chart.dom.parentElement !== this.tabChart) {
       this.chart?.destroy();
       this.tabChart.replaceChildren();
       this.chart = new ChartEditor(this.tabChart, part, {
@@ -552,12 +606,10 @@ export class Designer {
           this._onPaint();
         },
       });
-      this.chartBox = el('div');
-      this.tabChart.append(this.chartBox);
+      this.tabChart.append(el('p', { class: 'hint', style: { marginTop: '10px' } }, 'Rozestupy, šířku a velikost korálků najdeš v panelu v záložce Rozložení.'));
     }
     this.chart.setPart(part);
     this.chart.refreshToolbar();
-    if (kind !== 'paint') this._renderSettings(part);
   }
 
   _onPaint() {
@@ -570,67 +622,10 @@ export class Designer {
     }, 70);
   }
 
-  _renderSettings(part) {
-    const p = part.params;
-    const d = store.design;
-    const update = (changes) => {
-      store.snapshot();
-      applyMotifSettings(d, part, changes);
-      store.selected = Math.min(store.selected, d.slots.length - 1);
-      store.notify('geometry');
-    };
-    const num = (label, key, min, max, extra = {}) => el('label', { class: 'field' }, label,
-      el('input', { class: 'input', type: 'number', min, max, value: p[key] ?? 0, ...extra, onchange: (e) => {
-        const v = Math.max(min, Math.min(max, Math.round(Number(e.target.value) || 0)));
-        e.target.value = v;
-        update({ [key]: v });
-      } }));
-    const grid_ = el('div', { class: 'tpl-grid' });
-    if (p.kind === 'motifs') {
-      const same = new Set(p.seq).size === 1;
-      grid_.append(
-        el('label', { class: 'field' }, 'Motiv',
-          el('select', { class: 'input', onchange: (e) => update({ motif: e.target.value }) },
-            !same ? el('option', { selected: true, value: '' }, 'Vlastní mix') : null,
-            MOTIF_OPTIONS.map(([id, label]) => el('option', { value: id, selected: same && p.seq[0] === id }, label)))),
-        el('label', { class: 'field' }, 'Počet motivů',
-          el('input', { class: 'input', type: 'number', min: 1, max: 12, value: p.seq.length, onchange: (e) => {
-            const v = Math.max(1, Math.min(12, Math.round(Number(e.target.value) || 1)));
-            e.target.value = v;
-            update({ count: v });
-          } })),
-        num('Rozestup (korálky)', 'gap', 0, 30),
-        el('label', { class: 'field' }, 'Mezičlánek',
-          el('select', { class: 'input', onchange: (e) => update({ spacer: e.target.value || null }) },
-            [['', 'Žádný'], ['dot', 'Zlatý křížek'], ['cross', 'Velký křížek'], ['heartS', 'Malé srdce']].map(([id, label]) => el('option', { value: id, selected: (p.spacer ?? '') === id }, label)))),
-        el('label', { class: 'field' }, 'Barevné konce',
-          el('select', { class: 'input', onchange: (e) => update({ ends: Number(e.target.value) }) },
-            [[0, 'Žádné'], [1, '1 sloupec'], [2, '2 sloupce'], [3, '3 sloupce']].map(([v, label]) => el('option', { value: v, selected: (p.ends ?? 0) === v }, label)))),
-      );
-    }
-    grid_.append(
-      el('label', { class: 'field' }, 'Tvar konců',
-        el('select', { class: 'input', onchange: (e) => update({ taper: e.target.value === '1' }) },
-          el('option', { value: '0', selected: !p.taper }, 'Rovné'), el('option', { value: '1', selected: !!p.taper }, 'Špička ke sponě'))),
-      num('Šířka (korálky)', 'w', 5, 25),
-      el('label', { class: 'field' }, 'Velikost korálků',
-        el('select', { class: 'input', onchange: (e) => update({ size: Number(e.target.value) }) },
-          Object.entries(BEAD_SIZES).map(([v, def]) => el('option', { value: v, selected: Number(v) === (p.size ?? DEFAULT_SIZE) }, def.label)))),
-    );
-    const manual = !!part.cells;
-    this.chartBox.replaceChildren(
-      grid_,
-      el('p', { class: 'hint', style: { marginTop: '10px' } },
-        `Délka ${p.n} korálků se počítá ze zápěstí ${czNumber(d.wrist)} cm. `,
-        manual ? 'Změna nastavení vzor přepočítá znovu a ruční kreslení přepíše. Vrátit se dá tlačítkem Zpět.' : null),
-    );
-  }
-
   _renderTechniqueSettings() {
     const d = store.design;
     this.chart?.destroy();
     this.chart = null;
-    this.chartBox = null;
     const fields = d.parts.flatMap((part) => (TECHNIQUES[part.tech].mod.settings ?? []).map((f) => {
       const apply = (value) => {
         store.snapshot();
@@ -662,7 +657,6 @@ export class Designer {
     const d = store.design;
     this.chart?.destroy();
     this.chart = null;
-    this.chartBox = null;
     const box = [];
     const update = () => {
       store.notify('structure');

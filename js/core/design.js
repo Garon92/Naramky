@@ -94,8 +94,14 @@ export function setGroupColor(d, slotIndex, code) {
 
 // A colourway only changes colours. colors maps a group to one code or a list by member.
 export function applyColorway(d, colorway) {
-  for (const { name, slots } of groupsOf(d)) {
-    const value = colorway.colors[name];
+  const groups = groupsOf(d);
+  // A combination written for a pattern's pictures still fits after they change shape: their
+  // group got a new name, so they take the first colours no other group claims.
+  const part = d.parts[0];
+  const pictures = part.tech === 'peyote' && peyote.hasFigures(part.params) && peyote.figuresOf(part.params).length;
+  const unclaimed = Object.keys(colorway.colors).find((key) => !groups.some((g) => g.name === key));
+  for (const { name, slots } of groups) {
+    const value = colorway.colors[name] ?? (pictures && slots.includes(1) ? colorway.colors[unclaimed] : undefined);
     if (value === undefined) continue;
     slots.forEach((slotIndex, i) => {
       d.slots[slotIndex].code = codeOf(Array.isArray(value) ? value[i % value.length] : value);
@@ -193,43 +199,77 @@ export function applyWrist(d, wrist) {
   }
 }
 
-const FIRST_COLORS = { Konce: 'DB0031', Mezičlánky: 'DB0031', Středy: 'DB0721' };
-const FRESH_COLORS = ['DB1138', 'DB2036', 'DB0658', 'DB2138', 'DB0721', 'DB2121', 'DB2035', 'DB1133', 'DB0726', 'DB0244', 'DB0729', 'DB1379'];
+const FIRST_COLORS = { Konce: 'DB0031', Mezičlánky: 'DB0031', Lem: 'DB0031', Středy: 'DB0721' };
+const FRESH_COLORS = ['DB1110', 'DB2036', 'DB2122', 'DB1379', 'DB0721', 'DB2121', 'DB2035', 'DB1133', 'DB0239', 'DB0247', 'DB2133', 'DB2039'];
 
-// Changing pattern settings regenerates the band. Colours and names stay with their
-// objects, matched by group and by position inside the group.
+// New slots after the pattern changed. A picture keeps its colour and name through mainFrom,
+// which says where it used to be. A name it never got from the user follows its new shape.
+// Everything else is matched by group and by position inside the group.
+function regenerate(d, part, oldRoles, mainFrom) {
+  const old = d.slots;
+  const before = groupsOf(d);
+  const roles = peyote.generate(part.params).roles;
+  const count = peyote.figuresOf(part.params).length;
+  const taken = new Set(old.slice(0, count + 1).map((x) => x.code));
+  const freshColor = () => {
+    const code = FRESH_COLORS.find((c) => !taken.has(c)) ?? FRESH_COLORS[taken.size % FRESH_COLORS.length];
+    taken.add(code);
+    return code;
+  };
+  const seen = new Map();
+  d.slots = roles.map((role, j) => {
+    if (j >= 1 && j <= count) {
+      const from = mainFrom(j - 1);
+      const prev = from === null ? null : old[from + 1];
+      if (!prev) return { ...role, code: freshColor() };
+      return { ...prev, group: role.group, label: prev.label === oldRoles[from + 1]?.label ? role.label : prev.label };
+    }
+    const position = seen.get(role.group) ?? 0;
+    seen.set(role.group, position + 1);
+    const prevGroup = before.find((g) => g.name === role.group);
+    const prev = prevGroup ? old[prevGroup.slots[position]] ?? old[prevGroup.slots[0]] : null;
+    if (prev) return { ...prev, label: role.label };
+    return { ...role, code: FIRST_COLORS[role.group] ?? freshColor() };
+  });
+}
+
+// Changing pattern settings regenerates the band. Colours and names stay with their objects.
 export function applyMotifSettings(d, part, changes) {
   const p = part.params;
   const { motif, count, ...rest } = changes;
-  const before = groupsOf(d);
-  const old = d.slots.map((x) => ({ ...x }));
+  const pictures = peyote.hasFigures(p);
+  const oldRoles = pictures ? peyote.generate(p).roles : [];
+  const oldCount = pictures ? peyote.figuresOf(p).length : 0;
   const wasFitted = !('w' in rest) && p.w === peyote.fittedWidth(p);
   Object.assign(p, rest);
   part.cells = null;
   if (rest.size !== undefined) p.n = colsForWrist(d.wrist, peyote.beadDims(part).D);
-  if (motif) p.seq = p.seq.map(() => motif);
+  if (!pictures) return;
+  const key = peyote.figureKey(p);
+  if (motif) p[key] = p[key].map(() => motif);
   if (count !== undefined) {
-    const base = p.seq[0];
-    p.seq = Array.from({ length: count }, (_, i) => p.seq[i] ?? base);
+    const base = p[key][0];
+    p[key] = Array.from({ length: count }, (_, i) => p[key][i] ?? base);
   }
   // The band follows the picture. A width chosen by hand stays, evened up so that the free
   // rows above and below match.
   const fitted = peyote.fittedWidth(p);
-  if (fitted && (motif || wasFitted)) p.w = fitted;
-  else if (fitted && (p.w - fitted) % 2 !== 0) p.w += 1;
-  if (p.kind !== 'motifs') return;
-  const seen = new Map();
-  let fresh = 0;
-  d.slots = peyote.generate(p).roles.map((role) => {
-    const position = seen.get(role.group) ?? 0;
-    seen.set(role.group, position + 1);
-    const prevGroup = before.find((g) => g.name === role.group);
-    const prev = prevGroup ? old[prevGroup.slots[position]] : null;
-    if (prev) return { ...prev };
-    const sibling = prevGroup ? old[prevGroup.slots[0]] : null;
-    const code = sibling && role.group !== 'Srdíčka' ? sibling.code : FIRST_COLORS[role.group] ?? FRESH_COLORS[fresh++ % FRESH_COLORS.length];
-    return { ...role, code };
-  });
+  if (motif || wasFitted) p.w = fitted;
+  else if ((p.w - fitted) % 2 !== 0) p.w += 1;
+  regenerate(d, part, oldRoles, (i) => (i < oldCount ? i : null));
+}
+
+// Puts a new row of pictures on the band: a list of { id, from }, where from is the old
+// position of a picture, or null for a new one. Each keeps its colour and name as it moves.
+export function setFigures(d, part, list) {
+  const p = part.params;
+  const oldRoles = peyote.generate(p).roles;
+  const wasFitted = p.w === peyote.fittedWidth(p);
+  p[peyote.figureKey(p)] = list.map((f) => f.id);
+  part.cells = null;
+  if (wasFitted) p.w = peyote.fittedWidth(p);
+  regenerate(d, part, oldRoles, (i) => list[i].from);
+  if (list.some((f) => f.from === null)) d.colorway = null;
 }
 
 // Turns a design into what the 3D stage draws. Parts lie side by side.
@@ -269,7 +309,7 @@ export function sceneSpec(d) {
 // Where the interesting part of the design lies, for the default camera.
 export function focusSpan(d) {
   const p = d.parts[0];
-  if (p.tech === 'peyote' && p.params.kind === 'motifs') {
+  if (p.tech === 'peyote' && peyote.hasFigures(p.params)) {
     const m = peyote.grid(p);
     let min = Infinity;
     let max = -Infinity;
@@ -277,7 +317,7 @@ export function focusSpan(d) {
     for (let r = 0; r < m.w; r++) {
       for (let c = 0; c < m.n; c++) {
         const slot = m.cells[r * m.n + c];
-        if (slot >= 1 && slot <= p.params.seq.length) {
+        if (slot >= 1 && slot <= peyote.figuresOf(p.params).length) {
           min = Math.min(min, c);
           max = Math.max(max, c);
         }
@@ -374,6 +414,8 @@ export function decodeDesign(text) {
     if (p.c) part.cells = textToCells(p.c, p.a.w * p.a.n);
     return part;
   });
+  // Pictures of an older version may need more colours than it saved.
+  if (parts.some((p) => p.tech === 'peyote' && peyote.generate(p.params).roles.length > slots.length)) throw new Error('Návrh ze starší verze');
   return {
     v: 2, name: String(data.n ?? 'Návrh').slice(0, 80), note: String(data.o ?? '').slice(0, 500), colorway: data.y ?? null,
     wrist: Number(data.w) || WRIST_DEFAULT, metal: data.m ?? 'steel', surface: data.f ?? 'white',

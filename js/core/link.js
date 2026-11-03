@@ -1,8 +1,8 @@
 // Share links. A design almost always is "this pattern, these colours", so a link names
 // the pattern and carries only what differs from it:
 //   pattern . colourway . colours . other changes . changed beads
-import { b64, clone, EXTRA_GROUP } from './design.js';
-import { czName, codeOf } from './catalog.js';
+import { b64, clone, applyColorway, EXTRA_GROUP } from './design.js';
+import { czName } from './catalog.js';
 import { patternById } from './presets.js';
 import { generate, NONE } from '../techniques/peyote.js';
 
@@ -65,12 +65,20 @@ function unpackCells(text, original) {
   return cells;
 }
 
+// Pictures repeat, and a drawn one holds its whole shape in its id, so a list stores each once.
+const FIGURE_LISTS = ['seq', 'items'];
+
+function packFigures(list) {
+  const unique = [...new Set(list)];
+  return { u: unique, at: list.map((id) => unique.indexOf(id)) };
+}
+
 function paramsDelta(params, base) {
   const delta = {};
   const removed = [];
   for (const key of new Set([...Object.keys(params), ...Object.keys(base)])) {
     if (!(key in params)) removed.push(key);
-    else if (JSON.stringify(params[key]) !== JSON.stringify(base[key])) delta[key] = params[key];
+    else if (JSON.stringify(params[key]) !== JSON.stringify(base[key])) delta[key] = FIGURE_LISTS.includes(key) ? packFigures(params[key]) : params[key];
   }
   if (removed.length) delta._removed = removed;
   return Object.keys(delta).length ? delta : null;
@@ -79,6 +87,7 @@ function paramsDelta(params, base) {
 function applyDelta(params, delta) {
   const { _removed = [], ...rest } = delta;
   const out = { ...params, ...rest };
+  for (const key of FIGURE_LISTS) if (rest[key]) out[key] = rest[key].at.map((i) => rest[key].u[i]);
   for (const key of _removed) delete out[key];
   return out;
 }
@@ -95,7 +104,7 @@ export function encodeShare(d) {
 
   const wayIndex = pattern.colorways.findIndex((w) => w.name === d.colorway);
   const reference = clone(base);
-  if (wayIndex >= 0) applyWay(reference, pattern.colorways[wayIndex]);
+  if (wayIndex >= 0) applyColorway(reference, pattern.colorways[wayIndex]);
 
   const meta = {};
   if (d.name !== base.name) meta.n = d.name;
@@ -132,25 +141,6 @@ export function encodeShare(d) {
   return sections.join('.');
 }
 
-function applyWay(d, way) {
-  // Same result as applyColorway, kept here so that a reference never touches the name.
-  const byGroup = new Map();
-  d.slots.forEach((slot, i) => {
-    const key = slot.group ?? slot.label;
-    if (!byGroup.has(key)) byGroup.set(key, []);
-    byGroup.get(key).push(i);
-  });
-  for (const [name, slots] of byGroup) {
-    const value = way.colors[name];
-    if (value === undefined) continue;
-    slots.forEach((slotIndex, i) => {
-      d.slots[slotIndex].code = codeOf(Array.isArray(value) ? value[i % value.length] : value);
-    });
-  }
-  if (way.metal) d.metal = way.metal;
-  d.colorway = way.name;
-}
-
 // A fresh design of this pattern with the same parameters. Slots follow the parameters.
 function rebuild(pattern, deltas) {
   const d = pattern.make();
@@ -176,7 +166,7 @@ export function decodeShare(text) {
   if (way) {
     const colorway = pattern.colorways[parseInt(way, 36)];
     if (!colorway) throw new Error('Neznámá kombinace');
-    applyWay(d, colorway);
+    applyColorway(d, colorway);
   } else {
     d.colorway = null;
   }

@@ -23,7 +23,7 @@ test('a pattern is a shape: colour combinations live inside one pattern', () => 
 });
 
 test('every pattern sits in exactly one tab, and no tab lists an empty group', () => {
-  for (const p of PATTERNS) assert.equal(COLLECTIONS.filter((c) => c.groups.includes(p.group)).length, 1, p.id);
+  for (const p of PATTERNS.filter((x) => !x.hidden)) assert.equal(COLLECTIONS.filter((c) => c.groups.includes(p.group)).length, 1, p.id);
   for (const group of COLLECTIONS.flatMap((c) => c.groups)) assert.ok(PATTERNS.some((p) => p.group === group), group);
 });
 
@@ -118,7 +118,7 @@ test('motifs have the same free rows above and below, in every pattern', () => {
 test('a picture has exactly one free row above and below it', () => {
   for (const p of PATTERNS) {
     const part = p.make().parts[0];
-    if (part.tech !== 'peyote' || !['motifs', 'pixels'].includes(part.params.kind)) continue;
+    if (p.hidden || part.tech !== 'peyote' || !['motifs', 'pixels'].includes(part.params.kind)) continue;
     // Ends and triangles fill the free rows on purpose, so only the pictures are measured.
     const { w, n } = part.params;
     const { cells } = generate({ ...part.params, ends: 0, bg2: undefined });

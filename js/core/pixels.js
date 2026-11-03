@@ -1,5 +1,8 @@
 // Little pictures for loom work, where beads sit in a straight grid. Each character is
 // one bead. A dot is background, and every other character is a part named in its legend.
+// The first part of the legend is the picture itself.
+import { isDrawn, decodeDrawn } from './drawn.js';
+
 export const PIXELS = {
   heart: {
     label: 'Srdíčko', legend: { '#': 'Srdíčka' },
@@ -15,7 +18,7 @@ export const PIXELS = {
     ],
   },
   strawberry: {
-    label: 'Jahoda', legend: { g: 'Lístky', r: 'Jahody', y: 'Semínka' },
+    label: 'Jahoda', legend: { r: 'Jahody', g: 'Lístky', y: 'Semínka' },
     art: [
       '..g.g.g..',
       '.ggggggg.',
@@ -140,12 +143,66 @@ export const PIXELS = {
       '..yyyyy..',
     ],
   },
+  flower: {
+    label: 'Květina', legend: { '#': 'Květiny', o: 'Středy' },
+    art: [
+      '..##.##..',
+      '.#######.',
+      '.#######.',
+      '###ooo###',
+      '.##ooo##.',
+      '###ooo###',
+      '.#######.',
+      '.#######.',
+      '..##.##..',
+    ],
+  },
+  moon: {
+    label: 'Měsíc', legend: { '#': 'Měsíce' },
+    art: [
+      '...####',
+      '..###..',
+      '.###...',
+      '###....',
+      '###....',
+      '###....',
+      '.###...',
+      '..###..',
+      '...####',
+    ],
+  },
+  diamond: {
+    label: 'Kosočtverec', legend: { '#': 'Kosočtverce' },
+    art: [
+      '....#....',
+      '...###...',
+      '..#####..',
+      '.#######.',
+      '#########',
+      '.#######.',
+      '..#####..',
+      '...###...',
+      '....#....',
+    ],
+  },
+  cross: {
+    label: 'Velký křížek', legend: { '#': 'Křížky' },
+    art: ['..#..', '..#..', '#####', '..#..', '..#..'],
+  },
+  dot: {
+    label: 'Malý křížek', legend: { '#': 'Křížky' },
+    art: ['.#.', '###', '.#.'],
+  },
 };
+
+const DRAWN_LEGEND = { '#': 'Motivy', o: 'Středy' };
+
+export const pixelOf = (id) => PIXELS[id] ?? (isDrawn(id) ? { label: 'Motiv', legend: DRAWN_LEGEND, art: decodeDrawn(id, true) } : null);
 
 // Beads of a picture placed with its left edge on column c and its top on row top.
 export function placePixels(id, c, top, w, n) {
   const out = [];
-  PIXELS[id].art.forEach((line, row) => {
+  pixelOf(id).art.forEach((line, row) => {
     for (let x = 0; x < line.length; x++) {
       if (line[x] === '.') continue;
       const r = top + row;
@@ -156,4 +213,7 @@ export function placePixels(id, c, top, w, n) {
   return out;
 }
 
-export const pixelSize = (id) => ({ rows: PIXELS[id].art.length, cols: Math.max(...PIXELS[id].art.map((l) => l.length)) });
+export function pixelSize(id) {
+  const { art } = pixelOf(id);
+  return { rows: art.length, cols: Math.max(...art.map((l) => l.length)) };
+}
