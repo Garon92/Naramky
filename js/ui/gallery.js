@@ -67,14 +67,14 @@ export function renderGallery(root, { openDesign }) {
 }
 
 export function renderMine(root, { openDesign }) {
-  const card = (item, keyBase, note, open, actions) => {
+  const card = (item, keyBase, note, open, actions, cls = 'card') => {
     let design;
     try {
       design = decodeDesign(item.data);
     } catch {
       return null; // saved by an older version
     }
-    return el('div', { class: 'card' },
+    return el('div', { class: cls },
       el('button', { class: 'card-open', onclick: open, 'aria-label': `Otevřít ${item.name}` },
         thumbImage(`${keyBase}:${item.id}:${item.at}`, () => decodeDesign(item.data)),
         el('span', { class: 'meta' }, el('span', {}, el('b', {}, item.name), el('small', {}, note)), colorDots(design))),
@@ -102,7 +102,7 @@ export function renderMine(root, { openDesign }) {
         }
       } }, 'Smazat'),
     ]));
-    const unsaved = drafts.map((item) => card(item, 'draft', item.savedId ? `Neuložené změny, ${day(item)}` : day(item), () => {
+    const unsaved = drafts.map((item) => card(item, 'draft', `Neuloženo, ${day(item)}`, () => {
       if (openDraft(item.id)) toast(DRAFT_NOTE, 4000);
       location.hash = '#/';
     }, [
@@ -116,7 +116,7 @@ export function renderMine(root, { openDesign }) {
         forgetThumb(`draft:${item.id}:${item.at}`);
         draw();
       } }, 'Zahodit'),
-    ]));
+    ], 'card draft'));
     root.replaceChildren(el('div', { class: 'page' },
       el('header', { class: 'page-head' },
         el('div', {}, el('h1', {}, 'Moje návrhy'), el('p', {}, 'Jsou tu jen návrhy uložené tlačítkem Uložit. Drží se v tomhle prohlížeči, ne na internetu. Na jiný telefon nebo počítač se přenesou odkazem.')),
@@ -131,8 +131,8 @@ export function renderMine(root, { openDesign }) {
           draw();
         }
       } }, 'Smazat všechny uložené')) : null,
-      drafts.length ? el('h2', { class: 'group-title' }, 'Rozpracované', el('small', {}, String(drafts.length))) : null,
-      drafts.length ? el('p', { class: 'hint' }, `Neuložené změny z návrhů, od kterých se přešlo jinam. Aby se neztratily, drží se tu posledních ${DRAFT_LIMIT}, starší samy zmizí.`) : null,
+      drafts.length ? el('h2', { class: 'group-title' }, 'Rozpracované, neuložené', el('small', {}, String(drafts.length))) : null,
+      drafts.length ? el('p', { class: 'hint' }, `Tohle uložené není. Jsou to změny, od kterých se přešlo jinam, a uložených návrhů se nijak nedotkly. Aby se neztratily, drží se tu posledních ${DRAFT_LIMIT}, starší samy zmizí.`) : null,
       drafts.length ? el('div', { class: 'grid' }, unsaved) : null,
     ));
   };

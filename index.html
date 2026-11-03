@@ -25,6 +25,52 @@
       if (theme === 'dark') document.querySelector('meta[name=theme-color]').content = '#16121a';
     })();
   </script>
+  <script>
+    // GitHub Pages lets a browser keep each file for ten minutes, so after a new version it can
+    // run old files, or a mix that does not even start. All files of one version carry the same
+    // date, which tells what is out of date. This fetches those files anew and reloads, once per
+    // version. Unsaved work survives, the app writes it down when the page goes away.
+    (function () {
+      if (!/\.github\.io$/.test(location.hostname)) return;
+      var root = location.origin + location.pathname;
+      var running = null;
+      var checked = 0;
+      function date(url, cache) {
+        return fetch(url, { cache: cache }).then(function (r) { return r.headers.get('last-modified'); });
+      }
+      function files() {
+        return performance.getEntriesByType('resource')
+          .map(function (e) { return e.name; })
+          .filter(function (name) { return name.indexOf(root) === 0; });
+      }
+      function refresh(latest) {
+        try {
+          if (sessionStorage.getItem('naramky:updated') === latest) return;
+          sessionStorage.setItem('naramky:updated', latest);
+        } catch (e) { return; }
+        Promise.all(files().concat(root).map(function (url) {
+          return fetch(url, { cache: 'reload' }).catch(function () {});
+        })).then(function () { location.reload(); });
+      }
+      addEventListener('load', function () {
+        date(root, 'no-store').then(function (latest) {
+          running = latest;
+          return Promise.all(files().map(function (url) { return date(url, 'force-cache'); })).then(function (dates) {
+            if (latest && dates.some(function (d) { return d && d !== latest; })) refresh(latest);
+          });
+        }).catch(function () {});
+      });
+      // A tab left open keeps old code in memory, so look again whenever it comes back.
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden || !running || Date.now() - checked < 60000) return;
+        if (document.querySelector('dialog[open], .side.drawing')) return;
+        checked = Date.now();
+        date(root, 'no-store').then(function (latest) {
+          if (latest && latest !== running) refresh(latest);
+        }).catch(function () {});
+      });
+    })();
+  </script>
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/figtree-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/app.css">

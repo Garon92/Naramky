@@ -50,7 +50,7 @@ export const store = {
 
   // Replaces the design without losing work. Says whether unsaved changes became a draft.
   open(design, { savedId = null } = {}) {
-    if (savedId && savedId === this.savedId) return false; // already being edited
+    if (savedId && savedId === this.savedId && !this.isDirty()) return false; // already on screen
     const kept = keepDraft();
     this.load(design, { savedId });
     return kept;
@@ -200,7 +200,7 @@ export function deleteAllSaved() {
 // Saved designs are only what someone chose to save. Changes left behind by opening something
 // else wait here instead, so trying things out fills nothing up: the oldest simply drop off.
 
-export const DRAFT_NOTE = 'Neuložené změny najdeš v Moje návrhy, v části Rozpracované.';
+export const DRAFT_NOTE = 'Neuložené změny čekají v Moje návrhy v části Rozpracované. Uložené návrhy se nezměnily.';
 export { DRAFT_LIMIT };
 
 export function draftList() {

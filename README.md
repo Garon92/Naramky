@@ -43,6 +43,10 @@ Testy logiky:
 npm test
 ```
 
+## Nové verze
+
+GitHub Pages nechává prohlížeč držet každý soubor deset minut, takže hned po nasazení by mohl běžet starý kód, nebo směs, která se ani nespustí. Všechny soubory jedné verze mají stejné datum v hlavičce `Last-Modified`. Krátký skript v `index.html` podle něj pozná zastaralé soubory, stáhne je znovu a stránku jednou obnoví. Rozdělaný návrh se při tom neztratí.
+
 ## Vlastní tvary
 
 Nakreslený tvar nosí celou kresbu přímo ve svém identifikátoru (`js/core/drawn.js`). Návrh ani odkaz proto nepotřebují žádné společné úložiště a vlastní tvar uvidí každý, kdo dostane odkaz. Písmena z `js/core/letters.js` vznikají stejně.

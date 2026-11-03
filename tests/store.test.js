@@ -97,13 +97,22 @@ test('the same work is not kept twice', () => {
   assert.equal(draftList().length, 1);
 });
 
-test('opening the design already being edited keeps the edits on screen', () => {
+test('opening a saved design shows what was saved, and edits made to it wait as a draft', () => {
   saveCurrent();
   const id = store.savedId;
+  const saved = () => decodeDesign(savedList()[0].data);
+  const original = saved().slots[1].code;
+  const same = store.design;
+  assert.equal(store.open(saved(), { savedId: id }), false, 'nothing changed, nothing to do');
+  assert.equal(store.design, same);
+
   store.design.slots[1].code = 'DB0721';
-  const stale = decodeDesign(savedList()[0].data);
-  assert.equal(store.open(stale, { savedId: id }), false);
-  assert.equal(store.design.slots[1].code, 'DB0721');
+  assert.equal(store.open(saved(), { savedId: id }), true);
+  assert.equal(store.design.slots[1].code, original);
+  assert.equal(store.savedId, id);
+  assert.equal(store.isDirty(), false);
+  assert.equal(saved().slots[1].code, original);
+  assert.equal(decodeDesign(draftList()[0].data).slots[1].code, 'DB0721');
 });
 
 test('leaving a saved design with changes does not touch what was saved', () => {
