@@ -7,7 +7,7 @@ import { encodeDrawn, decodeDrawn } from '../js/core/drawn.js';
 import { LETTERS, letterShape } from '../js/core/letters.js';
 import { parseMotif, MOTIFS } from '../js/core/motifs.js';
 import { pixelSize, PIXELS } from '../js/core/pixels.js';
-import { generate, fittedWidth, placeFigures, figuresOf } from '../js/techniques/peyote.js';
+import { generate, fittedWidth, placeFigures, figuresOf, NONE } from '../js/techniques/peyote.js';
 
 const hearts = () => patternById('srdce').make();
 const list = (d) => figuresOf(d.parts[0].params).map((id, from) => ({ id, from }));
@@ -175,6 +175,59 @@ test('a row that does not fit closes up first, and only then says what is missin
 test('ends take their room from the row', () => {
   const p = { ...hearts().parts[0].params, seq: Array(14).fill('heartN'), ends: 3 };
   assert.equal(placeFigures(p).overflow, 14 * 7 + 6 - p.n);
+});
+
+// Where the beads of each row start and end along the band.
+function edges(p) {
+  const { cells } = generate(p);
+  const { w, n, loom } = p;
+  return Array.from({ length: w }, (_, r) => {
+    const xs = [];
+    for (let c = 0; c < n; c++) if (cells[r * n + c] !== NONE) xs.push(c + (loom ? 0 : (r % 2) / 2));
+    return { left: xs[0], right: (loom ? n - 1 : n - 0.5) - xs[xs.length - 1] };
+  });
+}
+
+test('a pointed end runs straight along the weave, and both ends match', () => {
+  for (const w of [9, 10, 11, 12, 13, 15]) {
+    const rows = edges({ kind: 'motifs', seq: [], w, n: 40, taper: true });
+    const middle = Math.floor((w - 1) / 2);
+    const half = (from, step, end) => {
+      const list = [];
+      for (let r = from; step < 0 ? r >= end : r <= end; r += step) list.push(rows[r]);
+      return list;
+    };
+    for (const part of [half(middle, -1, 0), half(w - 1 - middle, 1, w - 1)]) {
+      part.forEach((row, i) => {
+        if (!i) return;
+        assert.equal(row.left - part[i - 1].left, 0.5, `w ${w}: left edge`);
+        assert.equal(row.right - part[i - 1].right, 0.5, `w ${w}: right edge`);
+      });
+    }
+    for (const row of rows) assert.ok(Math.abs(row.left - row.right) <= 0.5, `w ${w}: ends differ, ${row.left} and ${row.right}`);
+  }
+});
+
+test('a pointed end on a woven band loses one bead per row on both sides', () => {
+  const rows = edges({ kind: 'pixels', items: [], w: 11, n: 40, taper: true, loom: true });
+  assert.deepEqual(rows.map((r) => r.left), [5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(rows.map((r) => r.right), rows.map((r) => r.left));
+});
+
+test('coloured ends follow a pointed end, and pictures keep away from it', () => {
+  const p = { kind: 'motifs', seq: ['heartN'], w: 11, n: 40, taper: true, ends: 2, gap: 2 };
+  const { cells, roles } = generate(p);
+  const left = roles.findIndex((r) => r.label === 'Levý konec');
+  const right = roles.findIndex((r) => r.label === 'Pravý konec');
+  for (let r = 0; r < p.w; r++) {
+    const row = Array.from(cells.slice(r * p.n, (r + 1) * p.n));
+    assert.equal(row.filter((v) => v === left).length, 2, `row ${r}`);
+    assert.equal(row.filter((v) => v === right).length, 2, `row ${r}`);
+    const first = row.findIndex((v) => v !== NONE);
+    assert.equal(row[first], left, `row ${r} starts with its end`);
+  }
+  const full = { ...p, seq: Array(5).fill('heartN'), gap: 0 };
+  assert.equal(placeFigures(full).overflow, 5 * 7 + 2 * (2 + 3) - full.n);
 });
 
 test('a frame adds rows and keeps a free row next to the picture', () => {

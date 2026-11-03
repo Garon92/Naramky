@@ -19,15 +19,25 @@ const beadX = (r, c) => c + (r % 2) / 2;
 const gridX = (part, r, c) => (part.params.loom ? c : beadX(r, c));
 const plainRoles = (labels) => labels.map((label) => ({ label, group: label }));
 
-function taper(cells, w, n) {
-  // Rows drop away towards the clasp, leaving a point at each end like a hand-made tab.
-  const mid = (w - 1) / 2;
+// How many beads a pointed end takes from a row, on the left and on the right. On the brick
+// lattice half a bead per row follows the natural diagonal of the weave, so the edge runs
+// straight and both ends match. On a straight grid one bead per row does the same.
+function tipCut(r, { w, n, loom }) {
+  const d = Math.abs(r - (w - 1) / 2);
+  if (loom) return [Math.floor(d), Math.floor(d)];
+  const target = d / 2 - (w % 2 ? 0 : 0.25);
+  const shift = (r % 2) / 2;
+  return [Math.ceil(target - shift), n - 1 - Math.floor(n - 0.5 - target - shift)];
+}
+
+const tipLength = (p) => (p.taper ? Math.max(...tipCut(0, p)) : 0);
+
+function taper(cells, p) {
+  const { w, n } = p;
   for (let r = 0; r < w; r++) {
-    const cut = Math.round(Math.abs(r - mid) * 0.75);
-    for (let c = 0; c < cut; c++) {
-      cells[r * n + c] = NONE;
-      cells[r * n + n - 1 - c] = NONE;
-    }
+    const [left, right] = tipCut(r, p);
+    for (let c = 0; c < left; c++) cells[r * n + c] = NONE;
+    for (let c = 0; c < right; c++) cells[r * n + n - 1 - c] = NONE;
   }
 }
 
@@ -86,7 +96,7 @@ export function placeFigures(p) {
   const ids = figuresOf(p);
   const widths = ids.map((id) => sizeOf(p, id).cols);
   const spacerWidth = p.spacer ? sizeOf(p, p.spacer).cols : 0;
-  const room = p.n - 2 * (p.ends ?? 0);
+  const room = p.n - 2 * ((p.ends ?? 0) + tipLength(p));
   const mid = (p.n - (p.kind === 'pixels' ? 1 : 0.5)) / 2;
   const sum = widths.reduce((a, b) => a + b, 0);
   const wanted = p.gap ?? 2;
@@ -195,14 +205,16 @@ function figures(p, w, n) {
     }
   }
   if (p.ends) {
+    // Coloured ends follow the edge of the band, also along a pointed end.
     for (let r = 0; r < w; r++) {
+      const [left, right] = p.taper ? tipCut(r, p) : [0, 0];
       for (let e = 0; e < p.ends; e++) {
-        cells[r * n + e] = endFirst;
-        cells[r * n + n - 1 - e] = endFirst + 1;
+        cells[r * n + left + e] = endFirst;
+        cells[r * n + n - 1 - right - e] = endFirst + 1;
       }
     }
   }
-  if (p.taper) taper(cells, w, n);
+  if (p.taper) taper(cells, p);
   return { cells, roles };
 }
 
@@ -218,7 +230,7 @@ const generators = {
     for (let r = 0; r < w; r++) {
       for (let c = 0; c < n; c++) cells[r * n + c] = Math.floor((beadX(r, c) + Math.abs(r - mid)) / band) % colors;
     }
-    if (p.taper) taper(cells, w, n);
+    if (p.taper) taper(cells, p);
     return { cells, roles: plainRoles(Array.from({ length: colors }, (_, i) => `Barva ${i + 1}`)) };
   },
 
@@ -230,7 +242,7 @@ const generators = {
     for (let r = 0; r < w; r++) {
       for (let c = 0; c < n; c++) cells[r * n + c] = Math.floor((beadX(r, c) + r / 2) / band) % colors;
     }
-    if (p.taper) taper(cells, w, n);
+    if (p.taper) taper(cells, p);
     return { cells, roles: plainRoles(Array.from({ length: colors }, (_, i) => `Barva ${i + 1}`)) };
   },
 
@@ -248,7 +260,7 @@ const generators = {
         cells[r * n + c] = Math.max(0, Math.min(colors - 1, Math.round(f)));
       }
     }
-    if (p.taper) taper(cells, w, n);
+    if (p.taper) taper(cells, p);
     return { cells, roles: plainRoles(Array.from({ length: colors }, (_, i) => `Odstín ${i + 1}`)) };
   },
 
@@ -274,7 +286,7 @@ const generators = {
         cells[r * n + c] = slot;
       }
     }
-    if (p.taper) taper(cells, w, n);
+    if (p.taper) taper(cells, p);
     return { cells, roles: plainRoles(weights.map((_, i) => `Barva ${i + 1}`)) };
   },
 
@@ -291,7 +303,7 @@ const generators = {
         else if (d <= period * 0.5) cells[r * n + c] = 1;
       }
     }
-    if (p.taper) taper(cells, w, n);
+    if (p.taper) taper(cells, p);
     return { cells, roles: plainRoles(['Podklad', 'Kosočtverce', 'Středy']) };
   },
 
@@ -304,7 +316,7 @@ const generators = {
       const a = Math.floor(r / block);
       for (let c = 0; c < n; c++) cells[r * n + c] = (a + Math.floor((beadX(r, c) + r / 2) / block)) % colors;
     }
-    if (p.taper) taper(cells, w, n);
+    if (p.taper) taper(cells, p);
     return { cells, roles: plainRoles(Array.from({ length: colors }, (_, i) => `Barva ${i + 1}`)) };
   },
 
@@ -316,7 +328,7 @@ const generators = {
       const slot = layout[Math.round((r / (w - 1)) * (layout.length - 1))];
       for (let c = 0; c < n; c++) cells[r * n + c] = slot;
     }
-    if (p.taper) taper(cells, w, n);
+    if (p.taper) taper(cells, p);
     const colors = Math.max(...layout) + 1;
     return { cells, roles: plainRoles(Array.from({ length: colors }, (_, i) => `Pruh ${i + 1}`)) };
   },
@@ -334,7 +346,7 @@ const generators = {
         else if (p.double && Math.abs(r - mid * (1 - 0.72 * s)) < thick) cells[r * n + c] = 2;
       }
     }
-    if (p.taper) taper(cells, w, n);
+    if (p.taper) taper(cells, p);
     const labels = ['Podklad', 'Vlna'];
     if (p.double) labels.push('Druhá vlna');
     return { cells, roles: plainRoles(labels) };
@@ -470,7 +482,7 @@ export function build(part) {
   }
   const { width, length } = bandSize(part);
   // The thread layer stays inside the zigzag ends, or it would peek out between rows.
-  const inset = D * 0.6 + (part.params.taper ? Math.round(((w - 1) / 2) * 0.75) * D : 0);
+  const inset = D * 0.6 + tipLength(part.params) * D;
   return {
     instances, length, width,
     bed: { sMin: -length / 2 + inset, sMax: length / 2 - inset, tMin: -width / 2 + L * 0.2, tMax: width / 2 - L * 0.2 },
