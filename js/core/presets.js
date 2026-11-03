@@ -155,7 +155,7 @@ const ZIGZAG_WAYS = [
   zigzag('Modrá a žlutá', 'mattenavy', 'yellow', 'palladium'), zigzag('Zelená a tyrkysová', 'sage', 'turq', 'emerald'),
   zigzag('Modrá a starorůžová', 'navy', 'oldrose', 'irisblue'), zigzag('Bílá a stříbrná', 'white', 'silver', 'irisblue'),
   zigzag('Kobaltová', 'cobaltab', 'cobaltab', 'royal'), zigzag('Krémová a levandulová', 'cream', 'lavender', 'cobalt'),
-  zigzag('Šedomodrá', 'dustyblue', 'silkblue', 'irisblue'), zigzag('Nebeská a stříbrná', 'azure', 'silver', 'irisblue'),
+  zigzag('Šedomodrá', 'dustyblue', 'powderblue', 'irisblue'), zigzag('Nebeská a stříbrná', 'azure', 'silver', 'irisblue'),
   zigzag('Černá a tyrkysová', 'black', 'turq', 'black'),
 ];
 list.push({
@@ -522,7 +522,7 @@ const strandOf = (id, name, labels, strands, rows) => addTech({
   id, group: 'Navlékané', name, tech: 'strand', labels, ways: rows,
   params: { lengthMm: BAND_MM + 4, strands: strands.map((seq) => ({ seq })) },
 });
-strandOf('krystaly', 'Krystaly a perly', ['Krystaly', 'Perly', 'Rokajly'], [[[0, 1, 'bicone4'], [2, 3], [1, 1, 'round4'], [2, 3]]], [['Rubínové', 'red', 'stonepearl', 'gold'], ['Ametyst', 'purple', 'stonepearl', 'silver'], ['Zimní', 'silkblue', 'stonepearl', 'silver']]);
+strandOf('krystaly', 'Krystaly a perly', ['Krystaly', 'Perly', 'Rokajly'], [[[0, 1, 'bicone4'], [2, 3], [1, 1, 'round4'], [2, 3]]], [['Rubínové', 'red', 'stonepearl', 'gold'], ['Ametyst', 'purple', 'stonepearl', 'silver'], ['Zimní', 'powderblue', 'stonepearl', 'silver']]);
 strandOf('krychlicky', 'Krychličky', ['Krychličky A', 'Krychličky B', 'Mezery'], [[[0, 2, 'cube4'], [2, 2], [1, 2, 'cube4'], [2, 2]]], [['Moře', 'turq', 'royal', 'gold'], ['Bonbón', 'hot', 'yellow', 'white']]);
 strandOf('tycinky', 'Tyčinky a rokajly', ['Tyčinky', 'Rokajly', 'Akcenty'], [[[0, 1, 'bugle6'], [1, 2], [2, 1, 'round3'], [1, 2]], [[1, 3], [0, 1, 'bugle6'], [1, 3]]], [['Stříbro a modrá', 'silver', 'cobalt', 'gold'], ['Zlato a černá', 'gold', 'black', 'cream']]);
 strandOf('perly', 'Perly se zlatem', ['Perly', 'Mezery', 'Kuličky'], [[[0, 1, 'round6'], [1, 2], [2, 1, 'round3'], [1, 2]]], [['Krémové', 'stonepearl', 'gold', 'gold'], ['Měsíční', 'moon', 'silver', 'silver']]);

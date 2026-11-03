@@ -402,6 +402,8 @@ test('mirror maps inside the grid', () => {
 test('catalogue knows the finishes and rejects unknown codes', () => {
   assert.equal(PALETTE.length >= 40, true);
   assert.equal(new Set(PALETTE.map((p) => p.code)).size, PALETTE.length);
+  // A mix is several colours in one bag, so it cannot stand for one colour.
+  assert.deepEqual(PALETTE.filter((p) => /\bmix\b/i.test(bead(p.code).name)).map((p) => p.code), []);
   assert.equal(bead('DB0031').finish, 'metal');
   assert.equal(bead('DB0010').finish, 'opaque');
   assert.equal(finishFromName('Matte Opaque Blue', 'o'), 'matte');
