@@ -1,6 +1,6 @@
 // The designer page. Simple first: tap a heart, pick a colour, send the link.
 // Bead-by-bead painting, pattern settings and the sewing guide live underneath.
-import { store, saveCurrent, shareLink, NO_LINK } from './store.js';
+import { store, saveCurrent, savedTarget, shareLink, NO_LINK } from './store.js';
 import { PhotoHost, VIEWS } from './photo.js';
 import { ChartEditor } from './chart.js';
 import { renderGuide } from './guide.js';
@@ -763,9 +763,34 @@ export class Designer {
     this._showTip();
   }
 
+  // Changes to a design that is already saved could be a fix or a new variant, so ask.
   _save() {
+    const target = savedTarget();
+    if (!target) {
+      this._saveAs(false);
+      return;
+    }
+    const choose = (asNew) => {
+      dialog.close();
+      this._saveAs(asNew);
+    };
+    const dialog = el('dialog', {},
+      el('h2', {}, 'Uložit změny'),
+      el('p', {}, `Tenhle návrh už je v Moje návrhy jako „${target.name}“. Změny ho můžou přepsat, nebo se uložit vedle něj jako další návrh.`),
+      el('div', { class: 'dialog-actions' },
+        el('button', { class: 'btn', onclick: () => dialog.close() }, 'Zrušit'),
+        el('button', { class: 'btn', onclick: () => choose(false) }, 'Přepsat'),
+        el('button', { class: 'btn primary', onclick: () => choose(true) }, 'Uložit jako nový'),
+      ),
+    );
+    dialog.addEventListener('close', () => dialog.remove());
+    document.body.append(dialog);
+    dialog.showModal();
+  }
+
+  _saveAs(asNew) {
     const before = store.design.name;
-    const { ok, name } = saveCurrent();
+    const { ok, name } = saveCurrent({ asNew });
     if (!ok) {
       toast('Uložení se nepovedlo, prohlížeč nepovoluje úložiště.');
       return;

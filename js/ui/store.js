@@ -157,8 +157,15 @@ function writeEntry(d, entryId) {
   return { ok: writeList([entry, ...list.filter((x) => x.id !== entry.id)]), entry };
 }
 
-export function saveCurrent() {
-  const { ok, entry } = writeEntry(store.design, store.savedId);
+// The saved design that saving would change, or null when saving makes a new one.
+export function savedTarget() {
+  if (!store.savedId || !store.isDirty()) return null;
+  return savedList().find((x) => x.id === store.savedId) ?? null;
+}
+
+// asNew leaves the saved design as it was and puts the changes next to it.
+export function saveCurrent({ asNew = false } = {}) {
+  const { ok, entry } = writeEntry(store.design, asNew ? null : store.savedId);
   if (ok) {
     store.savedId = entry.id;
     store.baseline = entry.data;

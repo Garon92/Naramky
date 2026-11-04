@@ -10,7 +10,7 @@ globalThis.localStorage = {
 globalThis.location = { origin: 'https://example.test', pathname: '/Naramky/' };
 
 const {
-  store, saveCurrent, savedList, deleteSaved, deleteAllSaved, duplicateSaved, shareLink, restoreSession,
+  store, saveCurrent, savedTarget, savedList, deleteSaved, deleteAllSaved, duplicateSaved, shareLink, restoreSession,
   draftList, openDraft, saveDraft, deleteDraft, DRAFT_LIMIT,
 } = await import('../js/ui/store.js');
 const { patternById } = await import('../js/core/presets.js');
@@ -49,6 +49,22 @@ test('saving again updates the same entry, also after a rename', () => {
   assert.equal(list[0].id, id);
   assert.equal(list[0].name, 'Pro Janu');
   assert.equal(decodeDesign(list[0].data).slots[1].code, 'DB0721');
+  assert.equal(store.isDirty(), false);
+});
+
+test('changes to a saved design can go next to it as a new one', () => {
+  saveCurrent();
+  const first = store.savedId;
+  const before = decodeDesign(savedList()[0].data).slots[1].code;
+  assert.equal(savedTarget(), null, 'nothing to ask while nothing changed');
+  store.design.slots[1].code = before === 'DB0721' ? 'DB0726' : 'DB0721';
+  assert.equal(savedTarget().id, first);
+  const second = saveCurrent({ asNew: true });
+  const list = savedList();
+  assert.equal(list.length, 2);
+  assert.equal(second.name, '4 srdíčka 2');
+  assert.notEqual(store.savedId, first);
+  assert.equal(decodeDesign(list.find((x) => x.id === first).data).slots[1].code, before, 'the first one stays as it was');
   assert.equal(store.isDirty(), false);
 });
 

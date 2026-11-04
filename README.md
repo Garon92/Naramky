@@ -11,7 +11,7 @@ Plánovač korálkových náramků s náhledem, který vypadá jako fotka. Běž
 - **Chytré rozložení:** motivy můžou být uprostřed, rovnoměrně po délce nebo se opakovat dokola. Řada se sama vystředí, mezery se přizpůsobí délce a šířka drží jednu volnou řadu nahoře i dole. Když se něco nevejde, web řekne, kolik korálků chybí.
 - **Náhled jako fotka:** opravdové 3D korálky, odlesky, měkké stíny a hloubka ostrosti. Dá se otáčet a přibližovat, stáhnout jako fotka.
 - **Sdílení:** krátký odkaz nese vzor a tvoje změny a posíláš ho sám, třeba přes WhatsApp, na telefonu i s fotkou. Web nikam nic neodesílá ani neobjednává a nemá žádný server.
-- **Ukládání:** v Moje návrhy je jen to, co někdo uložil tlačítkem Uložit. Rozpracovaný návrh se průběžně drží v prohlížeči a neuložené změny, od kterých někdo odešel, čekají v části Rozpracované, kde se drží jen posledních 6. Mezi zařízeními se návrh přenáší odkazem.
+- **Ukládání:** v Moje návrhy je jen to, co někdo uložil tlačítkem Uložit. Když se mění už uložený návrh, Uložit se zeptá, jestli ho přepsat, nebo uložit změny jako nový. Rozpracovaný návrh se průběžně drží v prohlížeči a neuložené změny, od kterých někdo odešel, čekají v části Rozpracované, kde se drží jen posledních 6. Mezi zařízeními se návrh přenáší odkazem.
 - **Pro šití:** schéma s kreslením po korálcích, seznam materiálu, postup po řadách, tisk.
 - **Tmavý režim:** přepínač v hlavičce střídá vzhled podle systému, světlý a tmavý.
 - **Předlohy:** vzor je tvar a barevné kombinace jsou uvnitř něj. Jsou rozdělené podle techniky. Je jich 85, z toho 4 tvary se srdíčky s 86 kombinacemi, a začít se dá i od prázdného pásu.
