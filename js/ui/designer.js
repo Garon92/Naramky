@@ -443,12 +443,6 @@ export class Designer {
     this.tip.replaceChildren(el('b', {}, name), mixed ? '' : `: ${colorTitle(slot.code)}`);
   }
 
-  _selectSlot(i) {
-    if (i === store.selected) return;
-    store.selected = i;
-    store.notify('meta');
-  }
-
   _setColor(code) {
     if (this.tapMode === 'paint') {
       this.paintCode = code;
